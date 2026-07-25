@@ -40,3 +40,9 @@ if (typeof HTMLCanvasElement !== 'undefined') {
     return 'data:image/png;base64,stub';
   };
 }
+
+// jsdom no implementa URL.createObjectURL (usado por IdCaptureStep para la
+// vista previa del archivo elegido); un stub mínimo basta para los tests.
+if (typeof URL !== 'undefined' && !URL.createObjectURL) {
+  URL.createObjectURL = () => 'blob:stub';
+}
