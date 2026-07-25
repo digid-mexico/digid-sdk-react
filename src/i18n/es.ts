@@ -1,0 +1,54 @@
+export const es = {
+  start: {
+    title: 'Firma tu documento',
+    greeting: (signatory: string, client: string, doc: string) =>
+      `¡Hola ${signatory}! ${client} te ha invitado a firmar el siguiente documento: ${doc}. Da clic en continuar para empezar el proceso de firma.`,
+    accept: 'Aceptar términos y condiciones',
+    download: 'Descárgalo aquí',
+    exit: 'Salir sin firmar',
+    continue: 'Continuar y firmar',
+    needTerms: 'Es necesario aceptar los términos y condiciones para poder continuar.',
+    kycNotice: 'Su información será utilizada con el fin de validar su identidad. ¿Desea continuar?',
+  },
+  idCapture: {
+    frontTitle: 'ID Frontal',
+    backTitle: 'ID Reverso',
+    frontHint: 'Sube tu identificación frontal',
+    backHint: 'Sube tu identificación reverso',
+    legible: 'Asegúrese que los datos de la identificación sean legibles',
+    dropHere: 'Haga clic para cargar o arrastrar y soltar',
+    formats: 'Formato JPEG o PNG',
+    openCamera: 'O haga click aquí para abrir la cámara',
+    captured: 'Imagen capturada.',
+    needPhoto: 'Es necesario subir una foto para poder continuar.',
+    signatory: 'Firmante',
+    back: 'Regresar',
+    continue: 'Continuar',
+  },
+  createSign: {
+    title: 'Valida tu información',
+    heading: '¡Llegó el momento de firmar!',
+    hint: 'Dibuje su firma en el pizarrón y asegúrese de que coincida con la de su identificación.',
+    clear: 'Limpiar',
+    download: 'Descargar',
+    stroke: 'Trazo',
+    needSign: 'Es necesario dibujar su firma para poder continuar.',
+  },
+  placeSignatures: {
+    title: 'Firma tus documento(s)',
+    instructions1: 'Revisa el contenido del documento para asegurarte de que es correcto.',
+    instructions2: 'Presiona el botón "Firmar" para aceptar la firma, repite este paso hasta finalizar.',
+    signCount: (n: number, total: number) => `Firma ${n}/${total}`,
+    continue: 'Continuar',
+  },
+  completed: {
+    title: '¡Felicitaciones!',
+    message: 'Ha completado exitosamente el proceso. Su información ha sido enviada y será revisada por el solicitante.',
+  },
+  steps: ['Adjunta tus datos', 'Sube tu firma', 'Firma documento(s)'],
+  errors: {
+    generic: 'Ocurrió un error, inténtelo nuevamente o contacte a soporte.',
+    camera: 'No fue posible acceder a la cámara. Revise los permisos del navegador.',
+  },
+} as const;
+export type Strings = typeof es;
