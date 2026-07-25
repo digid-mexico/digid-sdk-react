@@ -1,15 +1,30 @@
+import { useEffect, useRef } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StartStep } from './StartStep';
 import { IdCaptureStep } from './IdCaptureStep';
 import { CreateSignStep } from './CreateSignStep';
+import { PlaceSignaturesStep } from './PlaceSignaturesStep';
 import { FlowContext, type FlowContextValue } from '../../core/FlowContext';
 import { es, I18nProvider } from '../../i18n';
 import type { StartAutografaData } from '../../types/api';
 
 vi.mock('../pdf/PdfViewer', () => ({
-  PdfViewer: () => <div data-testid="pdf-mock" />,
+  // Invoca onPagesRendered una sola vez al montar (como el componente real,
+  // que lo hace desde un efecto tras cargar el PDF). Llamarlo directo en el
+  // cuerpo del render dispararía un setState del padre en cada re-render
+  // (referencia de array nueva cada vez) y produciría un loop infinito.
+  PdfViewer: ({ onPagesRendered, children }: {
+    onPagesRendered?: (p: unknown[]) => void; children?: React.ReactNode;
+  }) => {
+    const onPagesRenderedRef = useRef(onPagesRendered);
+    onPagesRenderedRef.current = onPagesRendered;
+    useEffect(() => {
+      onPagesRenderedRef.current?.([{ numPage: 1, width: 612, height: 792 }]);
+    }, []);
+    return <div data-testid="pdf-mock">{children}</div>;
+  },
 }));
 
 const startData = {
@@ -149,5 +164,43 @@ describe('CreateSignStep', () => {
     const ctx = makeCtx();
     renderStep(<CreateSignStep />, ctx);
     expect(screen.getByRole('button', { name: es.idCapture.continue })).toBeDisabled();
+  });
+});
+
+describe('PlaceSignaturesStep', () => {
+  const firmas = JSON.stringify([
+    { id: 'f1', firmante: 7, pagina: 1, xDoc: 100, ydoc: 100, AnchoPagina: 612, altoPagina: 792, position: 0, nombre: 'Ana' },
+    { id: 'f2', firmante: 7, pagina: 1, xDoc: 200, ydoc: 300, AnchoPagina: 612, altoPagina: 792, position: 0, nombre: 'Ana' },
+  ]);
+
+  function ctxWithFirmas(finishMock = vi.fn().mockResolvedValue({ Success: true })) {
+    const ctx = makeCtx({
+      state: {
+        step: 'placeSignatures',
+        startData: { ...startData, document: { ...startData.document, firmas } },
+        exitReason: null, error: null,
+      },
+    });
+    (ctx.api as { finishAutografa?: unknown }).finishAutografa = finishMock;
+    return { ctx, finishMock };
+  }
+
+  it('muestra el contador y avanza firma por firma hasta finish', async () => {
+    const { ctx, finishMock } = ctxWithFirmas();
+    renderStep(<PlaceSignaturesStep />, ctx);
+    const btn = await screen.findByRole('button', { name: /Firma 1\/2/ });
+    await userEvent.click(btn); // confirma 1 → pasa a 2
+    await screen.findByRole('button', { name: /Firma 2\/2/ });
+    expect(finishMock).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: /Firma 2\/2/ }));
+    await vi.waitFor(() => expect(finishMock).toHaveBeenCalledOnce());
+    expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
+  });
+
+  it('renderiza overlays de firma sobre el PDF', async () => {
+    const { ctx } = ctxWithFirmas();
+    const { container } = renderStep(<PlaceSignaturesStep />, ctx);
+    await screen.findByRole('button', { name: /Firma 1\/2/ });
+    expect(container.querySelectorAll('.digid-sign-overlay').length).toBeGreaterThan(0);
   });
 });

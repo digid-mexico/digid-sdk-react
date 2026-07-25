@@ -50,3 +50,9 @@ if (typeof URL !== 'undefined' && !URL.createObjectURL) {
 if (typeof URL !== 'undefined' && !URL.revokeObjectURL) {
   URL.revokeObjectURL = () => {};
 }
+
+// jsdom no implementa Element.scrollTo (usado por PlaceSignaturesStep para
+// hacer scroll automático a la firma activa dentro del visor de PDF).
+if (typeof Element !== 'undefined' && !Element.prototype.scrollTo) {
+  Element.prototype.scrollTo = () => {};
+}
