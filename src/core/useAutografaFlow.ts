@@ -18,8 +18,18 @@ export function useAutografaFlow(api: ApiClient) {
         const [start, asig] = await Promise.all([api.startAutografa(), api.getAsignado()]);
         if (cancelled) return;
         setAsignado(asig);
-        // Redirecciones por estado (portado de start.js/ine_front.js del flujo legacy)
-        if (start.document.estatus === 3 || start.assignament.status === 3 || asig.status === 3) {
+        // Redirecciones por estado (portado de start.js/ine_front.js del flujo legacy).
+        // Distinción importante entre los dos status===2, tomada de ine_front.js:
+        //   - asig.status===2 (el asignado ya firmó) → legacy redirige a
+        //     /completed_sign, la pantalla de éxito para quien acaba de terminar.
+        //     Se trata igual que status===3 (completado).
+        //   - start.assignament.status===2 (status del documento/asignación a
+        //     nivel firma) → legacy muestra una notificación de advertencia de
+        //     "ya firmado" y saca al usuario del flujo; eso sigue siendo EXIT.
+        if (
+          start.document.estatus === 3 || start.assignament.status === 3 ||
+          asig.status === 3 || asig.status === 2
+        ) {
           dispatch({ type: 'LOADED', data: start });
           dispatch({ type: 'GOTO', step: 'completed' });
           return;
@@ -28,7 +38,7 @@ export function useAutografaFlow(api: ApiClient) {
           dispatch({ type: 'EXIT', reason: 'document_cancelled' });
           return;
         }
-        if (start.assignament.status === 2 || asig.status === 2) {
+        if (start.assignament.status === 2) {
           dispatch({ type: 'EXIT', reason: 'already_signed' });
           return;
         }

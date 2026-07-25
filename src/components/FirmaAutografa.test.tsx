@@ -105,4 +105,15 @@ describe('FirmaAutografa — flujo completo', () => {
     render(<FirmaAutografa token="tok" baseUrl={BASE} />);
     await screen.findByText(es.completed.title);
   });
+
+  it('va directo a completado si el asignado ya terminó (status 2, portado de ine_front.js)', async () => {
+    server.use(
+      http.get(`${BASE}/api/asignado/autografa`, () =>
+        HttpResponse.json({ Data: { nombre: 'Ana', status: 2, firma: null,
+          files: { idFront: null, idBack: null, sign: null } } }),
+      ),
+    );
+    render(<FirmaAutografa token="tok" baseUrl={BASE} />);
+    await screen.findByText(es.completed.title);
+  });
 });

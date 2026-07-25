@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiClient } from '../api/client';
 import { FlowContext } from '../core/FlowContext';
 import { useAutografaFlow } from '../core/useAutografaFlow';
@@ -32,11 +32,14 @@ export function FirmaAutografa({
   const [toast, setToast] = useState<{ kind: 'success' | 'error' | 'warning'; message: string } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const notify = (kind: 'success' | 'error' | 'warning', message: string) => {
+  const notify = useCallback((kind: 'success' | 'error' | 'warning', message: string) => {
     setToast({ kind, message });
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 4000);
-  };
+  }, []);
+
+  // Evita que un timeout pendiente dispare setState tras el desmontaje
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
 
   // Estilos por cliente del backend (saneados) tienen prioridad sobre el theme del integrador
   const effectiveTheme: DigidTheme = useMemo(() => {
@@ -52,14 +55,20 @@ export function FirmaAutografa({
     if (state.step === 'completed') onComplete?.();
     if (state.step === 'exited') onExit?.(state.exitReason ?? 'user_exit');
     if (state.step === 'error' && state.error) onError?.(state.error);
-  }, [state.step]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Deps incluyen state.error y state.exitReason (no solo state.step) para
+    // que una segunda FAIL/EXIT estando ya en ese step (mismo step, nuevo
+    // error/reason) también dispare el callback correspondiente.
+  }, [state.step, state.error, state.exitReason]); // eslint-disable-line react-hooks/exhaustive-deps -- onComplete/onExit/onError intencionalmente fuera: no deben reejecutar el efecto si el consumidor pasa una nueva referencia en cada render
+
+  const flowContextValue = useMemo(
+    () => ({ api, state, dispatch, asignado, refreshAsignado, notify, setBusy, termsUrl }),
+    [api, state, asignado, refreshAsignado, notify, termsUrl],
+  );
 
   return (
     <I18nProvider value={es}>
       <ThemeProvider theme={effectiveTheme}>
-        <FlowContext.Provider
-          value={{ api, state, dispatch, asignado, refreshAsignado, notify, setBusy, termsUrl }}
-        >
+        <FlowContext.Provider value={flowContextValue}>
           {state.step === 'loading' && <Spinner />}
           {state.step === 'start' && <StartStep />}
           {state.step === 'ineFront' && <IdCaptureStep side="front" key="front" />}
