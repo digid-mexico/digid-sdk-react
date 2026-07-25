@@ -6,7 +6,7 @@ export type FlowStep =
   | 'exited' | 'error';
 
 // El hueco para 'selfie' (v2) se inserta aquí entre ineBack y createSign.
-const ORDER: FlowStep[] = [
+const ORDER: readonly FlowStep[] = [
   'start', 'ineFront', 'ineBack', 'createSign', 'placeSignatures', 'completed',
 ];
 
@@ -34,7 +34,7 @@ export const initialFlowState: FlowState = {
 export function flowReducer(state: FlowState, action: FlowAction): FlowState {
   switch (action.type) {
     case 'LOADED':
-      return { ...state, step: 'start', startData: action.data };
+      return { ...state, step: 'start', startData: action.data, error: null, exitReason: null };
     case 'NEXT': {
       const i = ORDER.indexOf(state.step);
       if (i === -1 || i === ORDER.length - 1) return state;
@@ -46,7 +46,7 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
       return { ...state, step: ORDER[i - 1]! };
     }
     case 'GOTO':
-      return { ...state, step: action.step };
+      return { ...state, step: action.step, error: null, exitReason: null };
     case 'EXIT':
       return { ...state, step: 'exited', exitReason: action.reason };
     case 'FAIL':
