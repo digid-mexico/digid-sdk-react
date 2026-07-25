@@ -3,7 +3,7 @@ export function Stepper({ steps, active }: { steps: readonly string[]; active: n
     <ol className="digid-stepper">
       {steps.map((label, i) => (
         <li
-          key={label}
+          key={`${i}-${label}`}
           className={`digid-stepper__item${i === active ? ' digid-stepper__item--active' : ''}`}
           aria-current={i === active ? 'step' : undefined}
         >

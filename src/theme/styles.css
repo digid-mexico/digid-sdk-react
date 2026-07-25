@@ -40,6 +40,8 @@
   background: var(--digid-dark); color: #fff; padding: 12px 20px;
   border-radius: var(--digid-radius); z-index: 70; }
 .digid-toast--error { background: var(--digid-danger); }
+.digid-toast--success { background: #22ad5c; }
+.digid-toast--warning { background: #d97706; }
 .digid-pdf { border: 1px solid var(--digid-border); border-radius: var(--digid-radius);
   overflow-y: auto; background: #6b7280; max-height: 600px; }
 .digid-pdf__pages { position: relative; display: flex; flex-direction: column; align-items: center; }
