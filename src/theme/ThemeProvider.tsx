@@ -1,4 +1,4 @@
-import { createContext, useContext, type CSSProperties, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type CSSProperties, type ReactNode } from 'react';
 
 export interface DigidTheme {
   primaryColor?: string; // botones/acento
@@ -6,7 +6,13 @@ export interface DigidTheme {
   logoUrl?: string; // logo del cliente (estilos del backend)
 }
 
-const ThemeContext = createContext<DigidTheme>({});
+const EMPTY_THEME: DigidTheme = Object.freeze({});
+
+const ThemeContext = createContext<DigidTheme>(EMPTY_THEME);
+
+/** Los valores expuestos aquí son RAW (sin sanear): vienen tal cual del backend.
+ *  No los inyectes directamente en `style`/CSS — usa las variables --digid-*
+ *  ya aplicadas por ThemeProvider, o pásalos por sanitizeColor primero. */
 export const useTheme = () => useContext(ThemeContext);
 
 /** Solo hex #rgb/#rrggbb: los colores vienen del backend (estilos por cliente)
@@ -22,8 +28,9 @@ export function ThemeProvider({ theme, children }: { theme?: DigidTheme; childre
   const btnText = sanitizeColor(theme?.buttonTextColor);
   if (primary) style['--digid-primary'] = primary;
   if (btnText) style['--digid-btn-text'] = btnText;
+  const contextValue = useMemo(() => theme ?? EMPTY_THEME, [theme]);
   return (
-    <ThemeContext.Provider value={theme ?? {}}>
+    <ThemeContext.Provider value={contextValue}>
       <div className="digid-root" style={style}>
         {children}
       </div>

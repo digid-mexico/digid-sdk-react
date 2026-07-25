@@ -34,4 +34,24 @@ describe('ThemeProvider', () => {
     const root = screen.getByText('hijo').closest('.digid-root') as HTMLElement;
     expect(root.style.getPropertyValue('--digid-primary')).toBe('');
   });
+
+  it('aplica el color de texto de botón como CSS variable en el contenedor', () => {
+    render(
+      <ThemeProvider theme={{ buttonTextColor: '#abcdef' }}>
+        <span>hijo</span>
+      </ThemeProvider>,
+    );
+    const root = screen.getByText('hijo').closest('.digid-root') as HTMLElement;
+    expect(root.style.getPropertyValue('--digid-btn-text')).toBe('#abcdef');
+  });
+
+  it('ignora colores de texto de botón maliciosos del backend', () => {
+    render(
+      <ThemeProvider theme={{ buttonTextColor: 'evil;}' }}>
+        <span>hijo</span>
+      </ThemeProvider>,
+    );
+    const root = screen.getByText('hijo').closest('.digid-root') as HTMLElement;
+    expect(root.style.getPropertyValue('--digid-btn-text')).toBe('');
+  });
 });
