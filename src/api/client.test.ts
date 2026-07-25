@@ -66,6 +66,39 @@ describe('ApiClient.saveFile', () => {
     });
     expect(res.Success).toBe(true);
   });
+
+  it('envía webCameraDataUrl como campo webCamera, sin file, para step firma', async () => {
+    server.use(
+      http.post(`${BASE}/api/asignado/autografa/save_file`, async ({ request }) => {
+        const form = await request.formData();
+        expect(form.get('token')).toBe('tok123');
+        expect(form.get('step')).toBe('firma');
+        expect(form.get('idFirma')).toBe('7');
+        expect(form.get('webCamera')).toBe('data:image/png;base64,AAAA');
+        expect(form.get('file')).toBeNull();
+        return HttpResponse.json({ Success: true, Step: 1 });
+      }),
+    );
+    const res = await client.saveFile({
+      step: 'firma',
+      idFirma: 7,
+      webCameraDataUrl: 'data:image/png;base64,AAAA',
+    });
+    expect(res.Success).toBe(true);
+  });
+});
+
+describe('ApiClient.getAsignado', () => {
+  it('devuelve Data tipada en éxito', async () => {
+    server.use(
+      http.get(`${BASE}/api/asignado/autografa`, ({ request }) => {
+        expect(new URL(request.url).searchParams.get('token')).toBe('tok123');
+        return HttpResponse.json({ Success: true, Data: { nombre: 'Juan' } });
+      }),
+    );
+    const data = await client.getAsignado();
+    expect(data.nombre).toBe('Juan');
+  });
 });
 
 describe('ApiClient.finishAutografa', () => {
@@ -79,5 +112,18 @@ describe('ApiClient.finishAutografa', () => {
       }),
     );
     await expect(client.finishAutografa(null)).resolves.toMatchObject({ Success: true });
+  });
+
+  it('incluye gps en el form cuando se provee', async () => {
+    server.use(
+      http.post(`${BASE}/api/archivofirma/finish_autografa`, async ({ request }) => {
+        const form = await request.formData();
+        expect(form.get('gps')).toBe('19.4326,-99.1332');
+        return HttpResponse.json({ Success: true });
+      }),
+    );
+    await expect(client.finishAutografa('19.4326,-99.1332')).resolves.toMatchObject({
+      Success: true,
+    });
   });
 });

@@ -43,6 +43,14 @@ export interface SignatureCoordinate {
 
 export type SaveFileStep = 'ine_frente' | 'ine_reverso' | 'selfie' | 'firma';
 
+/**
+ * `DOCUMENT_ALREADY_SIGNED`, `DOCUMENT_CANCELLED`, `UPLOAD_REJECTED` y
+ * `FINISH_FAILED` son códigos reservados: ApiClient (src/api/client.ts) no
+ * los produce todavía. Hoy cualquier 4xx se mapea a `INVALID_TOKEN` y
+ * cualquier 5xx (o respuesta no-JSON) a `UNEXPECTED`; el detalle crudo del
+ * backend, si existe, va en `err.detail`. No escribir ramas de switch para
+ * estos códigos asumiendo que son alcanzables hasta que ApiClient los emita.
+ */
 export type DigidErrorCode =
   | 'NETWORK'
   | 'INVALID_TOKEN'
