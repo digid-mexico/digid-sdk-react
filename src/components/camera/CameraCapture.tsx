@@ -19,15 +19,23 @@ export function CameraCapture({ onCapture, onCancel, mirror = false }: Props) {
 
   useEffect(() => { void open(); }, [open]);
   useEffect(() => {
-    if (videoRef.current && stream) {
+    if (!videoRef.current) return;
+    if (stream) {
       videoRef.current.srcObject = stream;
-      void videoRef.current.play();
+      // Autoplay/AbortError son esperables (p.ej. si el stream cambia
+      // rápidamente) y no representan un error real para el usuario.
+      void videoRef.current.play().catch(() => {});
+    } else {
+      videoRef.current.srcObject = null;
     }
   }, [stream]);
 
   function capture() {
     const video = videoRef.current, canvas = canvasRef.current;
     if (!video || !canvas) return;
+    // El video puede no tener dimensiones aún (permiso pendiente / stream
+    // no listo): evita capturar un frame en blanco de 0x0.
+    if (video.videoWidth === 0) return;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d')!;
@@ -47,7 +55,7 @@ export function CameraCapture({ onCapture, onCancel, mirror = false }: Props) {
             style={mirror ? { transform: 'scaleX(-1)' } : undefined} />
           <div className="digid-footer">
             {onCancel && <Button variant="secondary" onClick={() => { close(); onCancel(); }}>✕</Button>}
-            <Button onClick={capture} aria-label="Capturar">📷</Button>
+            <Button onClick={capture} disabled={!stream} aria-label="Capturar">📷</Button>
           </div>
         </>
       ) : (

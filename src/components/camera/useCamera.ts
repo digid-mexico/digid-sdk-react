@@ -4,8 +4,20 @@ export function useCamera(facingMode: 'environment' | 'user' = 'environment') {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const mountedRef = useRef(true);
+  // Se incrementa en cada close()/open() para invalidar llamadas a
+  // getUserMedia en vuelo que quedaron obsoletas (evita fuga de cámara).
+  const generationRef = useRef(0);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const close = useCallback(() => {
+    generationRef.current += 1;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setStream(null);
@@ -14,11 +26,20 @@ export function useCamera(facingMode: 'environment' | 'user' = 'environment') {
   const open = useCallback(async () => {
     close();
     setError(null);
+    const myGeneration = generationRef.current;
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
+      // Si el componente se desmontó o otro open()/close() superó esta
+      // llamada mientras getUserMedia estaba pendiente, el stream quedó
+      // huérfano: apágalo de inmediato y no actualices estado.
+      if (!mountedRef.current || generationRef.current !== myGeneration) {
+        s.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = s;
       setStream(s);
     } catch (e) {
+      if (!mountedRef.current || generationRef.current !== myGeneration) return;
       setError(e instanceof Error ? e : new Error(String(e)));
     }
   }, [close, facingMode]);
