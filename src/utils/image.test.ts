@@ -14,6 +14,11 @@ describe('sniffImageType', () => {
   it('rechaza otros formatos', () => {
     expect(sniffImageType(new Uint8Array([0x00, 0x01, 0x02, 0x03]))).toBeNull();
   });
+  it('rechaza bytes con firma PNG parcial y cola basura', () => {
+    expect(
+      sniffImageType(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0xff, 0xff, 0xff])),
+    ).toBeNull();
+  });
 });
 
 describe('validateImageFile', () => {
@@ -29,6 +34,10 @@ describe('validateImageFile', () => {
     const big = new File([new Uint8Array(11 * 1024 * 1024)], 'big.jpg', { type: 'image/jpeg' });
     await expect(validateImageFile(big)).rejects.toThrow(/tamaño/i);
   });
+  it('acepta un PNG válido dentro del límite', async () => {
+    const file = new File([PNG_BYTES], 'ine.png', { type: 'image/png' });
+    await expect(validateImageFile(file)).resolves.toBe('image/png');
+  });
 });
 
 describe('dataUrlToBlob', () => {
@@ -36,5 +45,8 @@ describe('dataUrlToBlob', () => {
     const blob = dataUrlToBlob('data:image/jpeg;base64,/9j/4AA=');
     expect(blob.type).toBe('image/jpeg');
     expect(blob.size).toBeGreaterThan(0);
+  });
+  it('rechaza un dataURL malformado', () => {
+    expect(() => dataUrlToBlob('no-es-un-dataurl')).toThrow(/dataurl/i);
   });
 });

@@ -4,10 +4,8 @@ export const MAX_IMAGE_DIMENSION = 1920; // px, lado mayor tras downscale
 export function sniffImageType(bytes: Uint8Array): 'image/jpeg' | 'image/png' | null {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff)
     return 'image/jpeg';
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
-  )
+  const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (bytes.length >= PNG_SIGNATURE.length && PNG_SIGNATURE.every((b, i) => bytes[i] === b))
     return 'image/png';
   return null;
 }
@@ -37,9 +35,22 @@ export async function validateImageFile(file: File): Promise<'image/jpeg' | 'ima
 }
 
 export function dataUrlToBlob(dataUrl: string): Blob {
-  const [meta, b64] = dataUrl.split(',');
-  const mime = (meta ?? '').match(/data:([^;]+)/)?.[1] ?? 'application/octet-stream';
-  const bin = atob(b64 ?? '');
+  const match = dataUrl.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?(;base64)?,(.*)$/s);
+  if (!match) throw new Error('El dataURL no es válido.');
+  const [, mimeFromMatch, isBase64, payload] = match;
+  const mime = mimeFromMatch ?? 'application/octet-stream';
+  if (!payload) throw new Error('El dataURL no es válido.');
+  let bin: string;
+  if (isBase64) {
+    try {
+      bin = atob(payload);
+    } catch {
+      throw new Error('El dataURL no es válido.');
+    }
+  } else {
+    bin = decodeURIComponent(payload);
+  }
+  if (!bin) throw new Error('El dataURL no es válido.');
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new Blob([bytes], { type: mime });
