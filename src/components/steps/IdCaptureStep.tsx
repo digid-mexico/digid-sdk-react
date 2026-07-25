@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFlow } from '../../core/FlowContext';
 import { useStrings } from '../../i18n';
 import { Button } from '../ui/Button';
@@ -22,29 +22,57 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
     existing ? { kind: 'existing', base64: existing } : { kind: 'none' },
   );
   const [cameraOpen, setCameraOpen] = useState(!existing && isMobileDevice());
+  const [submitting, setSubmitting] = useState(false);
+  // rastrea el object URL vigente (si lo hay) para poder revocarlo cuando se
+  // reemplaza o descarta la selección, y también al desmontar.
+  const objectUrlRef = useRef<string | null>(null);
+
+  function revokeCurrentObjectUrl() {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+  }
+
+  useEffect(() => () => revokeCurrentObjectUrl(), []);
 
   async function pickFile(file: File) {
     try {
       await validateImageFile(file);
-      setSource({ kind: 'file', file, previewUrl: URL.createObjectURL(file) });
+      revokeCurrentObjectUrl();
+      const previewUrl = URL.createObjectURL(file);
+      objectUrlRef.current = previewUrl;
+      setSource({ kind: 'file', file, previewUrl });
     } catch (e) {
       notify('error', e instanceof Error ? e.message : s.errors.generic);
     }
   }
 
   async function submit() {
+    if (submitting) return; // guarda contra doble click durante un envío en curso
     if (source.kind === 'none') {
       notify('warning', s.idCapture.needPhoto);
       return;
     }
+    setSubmitting(true);
     setBusy(true);
     try {
       if (source.kind !== 'existing') {
         const step = side === 'front' ? 'ine_frente' : 'ine_reverso';
         const idFirma = asignado?.firma?.id ?? 0;
         if (source.kind === 'file') {
-          // normalizeToJpeg quita EXIF y limita dimensiones; fallback al archivo original
-          const blob = await normalizeToJpeg(source.file).catch(() => source.file);
+          // normalizeToJpeg quita EXIF y limita dimensiones; si falla (p.ej.
+          // jsdom o un formato no soportado por createImageBitmap) se sube el
+          // archivo original sin bloquear al usuario, pero se deja constancia
+          // de que no se pudo re-codificar (EXIF, incl. GPS, no removido).
+          const blob = await normalizeToJpeg(source.file).catch((err) => {
+            console.warn(
+              '[IdCaptureStep] No fue posible re-codificar la imagen; se sube el archivo ' +
+                'original sin remover metadatos EXIF.',
+              err,
+            );
+            return source.file;
+          });
           await api.saveFile({ step, idFirma, file: blob });
         } else {
           await api.saveFile({ step, idFirma, webCameraDataUrl: source.dataUrl });
@@ -55,6 +83,7 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
       notify('error', s.errors.generic);
     } finally {
       setBusy(false);
+      setSubmitting(false);
     }
   }
 
@@ -85,7 +114,11 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
         <div>
           <img src={previewSrc} alt={`Identificación ${side === 'front' ? 'frontal' : 'reverso'}`} />
           <Button variant="secondary" aria-label="Cambiar foto"
-            onClick={() => { setSource({ kind: 'none' }); if (isMobileDevice()) setCameraOpen(true); }}>
+            onClick={() => {
+              revokeCurrentObjectUrl();
+              setSource({ kind: 'none' });
+              if (isMobileDevice()) setCameraOpen(true);
+            }}>
             ✕
           </Button>
         </div>
@@ -125,7 +158,7 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
         <Button variant="secondary" onClick={() => dispatch({ type: 'BACK' })}>
           {s.idCapture.back}
         </Button>
-        <Button disabled={source.kind === 'none'} onClick={() => void submit()}>
+        <Button disabled={source.kind === 'none' || submitting} onClick={() => void submit()}>
           {s.idCapture.continue}
         </Button>
       </div>

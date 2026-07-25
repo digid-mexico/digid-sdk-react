@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StartStep } from './StartStep';
 import { IdCaptureStep } from './IdCaptureStep';
@@ -120,6 +120,27 @@ describe('IdCaptureStep', () => {
     expect(screen.getByAltText(/identificación/i)).toHaveAttribute(
       'src', expect.stringContaining('data:image/jpeg;base64,QUJD'),
     );
+  });
+
+  it('un doble click en Continuar durante un guardado lento no duplica el envío', async () => {
+    const ctx = makeCtx();
+    let resolveSave!: (v: { Success: boolean; Step: number }) => void;
+    const pending = new Promise<{ Success: boolean; Step: number }>((resolve) => {
+      resolveSave = resolve;
+    });
+    (ctx.api.saveFile as ReturnType<typeof vi.fn>).mockReturnValue(pending);
+    renderStep(<IdCaptureStep side="front" />, ctx);
+    const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
+    await userEvent.upload(input, new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'ine.jpg', { type: 'image/jpeg' }));
+    const btn = screen.getByRole('button', { name: es.idCapture.continue });
+    await userEvent.click(btn);
+    await userEvent.click(btn);
+    await act(async () => {
+      resolveSave({ Success: true, Step: 0 });
+    });
+    await vi.waitFor(() => expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' }));
+    expect(ctx.api.saveFile).toHaveBeenCalledTimes(1);
+    expect(ctx.dispatch).toHaveBeenCalledTimes(1);
   });
 });
 

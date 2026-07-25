@@ -41,8 +41,12 @@ if (typeof HTMLCanvasElement !== 'undefined') {
   };
 }
 
-// jsdom no implementa URL.createObjectURL (usado por IdCaptureStep para la
-// vista previa del archivo elegido); un stub mínimo basta para los tests.
+// jsdom no implementa URL.createObjectURL/revokeObjectURL (usados por
+// IdCaptureStep para la vista previa del archivo elegido y su limpieza);
+// stubs mínimos bastan para los tests.
 if (typeof URL !== 'undefined' && !URL.createObjectURL) {
   URL.createObjectURL = () => 'blob:stub';
+}
+if (typeof URL !== 'undefined' && !URL.revokeObjectURL) {
+  URL.revokeObjectURL = () => {};
 }

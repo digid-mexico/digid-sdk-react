@@ -49,7 +49,10 @@ export function StartStep() {
       </div>
 
       {kycOpen && (
-        <Modal onClose={() => setKycOpen(false)} ariaLabel={s.start.kycNotice}>
+        // onClose es un no-op a propósito: el flujo legado exige una elección
+        // explícita (Continuar o Salir) para el consentimiento KYC, así que el
+        // backdrop y Escape (que Modal invoca vía onClose) no deben cerrarlo.
+        <Modal onClose={() => {}} ariaLabel={s.start.kycNotice}>
           <p>{s.start.kycNotice}</p>
           <div className="digid-footer">
             <Button variant="secondary" onClick={() => dispatch({ type: 'EXIT', reason: 'user_exit' })}>

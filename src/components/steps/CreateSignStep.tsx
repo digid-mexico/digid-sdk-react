@@ -14,12 +14,15 @@ export function CreateSignStep() {
   const [useExisting, setUseExisting] = useState(existing != null);
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [strokeColor, setStrokeColor] = useState('#000000');
+  const [submitting, setSubmitting] = useState(false);
 
   async function submit() {
+    if (submitting) return; // guarda contra doble click durante un envío en curso
     if (!dirty && !useExisting) {
       notify('warning', s.createSign.needSign);
       return;
     }
+    setSubmitting(true);
     setBusy(true);
     try {
       if (!useExisting) {
@@ -34,6 +37,7 @@ export function CreateSignStep() {
       notify('error', s.errors.generic);
     } finally {
       setBusy(false);
+      setSubmitting(false);
     }
   }
 
@@ -73,7 +77,7 @@ export function CreateSignStep() {
         <Button variant="secondary" onClick={() => dispatch({ type: 'BACK' })}>
           {s.idCapture.back}
         </Button>
-        <Button disabled={!dirty && !useExisting} onClick={() => void submit()}>
+        <Button disabled={(!dirty && !useExisting) || submitting} onClick={() => void submit()}>
           {s.idCapture.continue}
         </Button>
       </div>
