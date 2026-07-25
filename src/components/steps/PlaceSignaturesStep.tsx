@@ -37,7 +37,15 @@ export function PlaceSignaturesStep() {
 
   const overlays: (OverlayPosition & { id: string })[] = useMemo(() => {
     if (pages.length === 0) return [];
-    const width = containerRef.current?.clientWidth ?? pages[0]!.width;
+    // Medir el mismo elemento que PdfViewer usa para escalar sus páginas
+    // (.digid-pdf), no el <section> exterior: .digid-pdf pierde ancho frente
+    // a su scrollbar vertical cuando el documento no cabe completo, y usar
+    // el ancho del <section> desalinearía el margen de centrado de los
+    // overlays respecto al de las páginas renderizadas.
+    // `||` (no `??`): clientWidth 0 (jsdom, contenedor oculto) también debe
+    // caer al fallback de pages[0].width.
+    const width = containerRef.current?.querySelector('.digid-pdf')?.clientWidth
+      || pages[0]!.width;
     return coords
       .slice(0, Math.min(placed + 1, coords.length)) // confirmadas + la actual en preview
       .map((c) => {
@@ -96,6 +104,10 @@ export function PlaceSignaturesStep() {
           <div
             key={o.id}
             className="digid-sign-overlay"
+            // Tamaño fijo 100x50 por ahora: el flujo legacy (firmar.js) usa un
+            // tamaño responsive (60x40 en móvil, 194x120 en escritorio). Hay
+            // que verificar la paridad visual contra el legacy en el
+            // playground (Task 13) y ajustar si hace falta.
             style={{
               top: o.y, left: o.x, width: 100, height: 50,
               transform: o.rotation ? `rotate(${o.rotation}deg)` : undefined,

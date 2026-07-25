@@ -36,4 +36,20 @@ describe('computeOverlayPosition', () => {
       AnchoPagina: 612, altoPagina: 792, position: 0, nombre: 'Ana' };
     expect(computeOverlayPosition(coord, pages, 612)).toBeNull();
   });
+
+  it('suma el margen de centrado cuando el contenedor es más ancho que la página', () => {
+    const coord = { id: 'a', firmante: 7, pagina: 1, xDoc: 0, ydoc: 0,
+      AnchoPagina: 612, altoPagina: 792, position: 0, nombre: 'Ana' };
+    // margen = (800 - 612) / 2 = 94
+    const pos = computeOverlayPosition(coord, pages, 800)!;
+    expect(pos.x).toBeCloseTo(94);
+  });
+
+  it('recorta el margen a 0 cuando el contenedor es más angosto que la página', () => {
+    const coord = { id: 'a', firmante: 7, pagina: 1, xDoc: 0, ydoc: 0,
+      AnchoPagina: 612, altoPagina: 792, position: 0, nombre: 'Ana' };
+    // margen negativo (500 - 612) / 2 = -56 → se recorta a 0
+    const pos = computeOverlayPosition(coord, pages, 500)!;
+    expect(pos.x).toBeCloseTo(0);
+  });
 });
