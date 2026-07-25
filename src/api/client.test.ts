@@ -67,15 +67,37 @@ describe('ApiClient.saveFile', () => {
     expect(res.Success).toBe(true);
   });
 
-  it('envía webCameraDataUrl como campo webCamera, sin file, para step firma', async () => {
+  it('envía webCameraDataUrl como campo webCamera, sin file, para step ine_frente', async () => {
+    server.use(
+      http.post(`${BASE}/api/asignado/autografa/save_file`, async ({ request }) => {
+        const form = await request.formData();
+        expect(form.get('token')).toBe('tok123');
+        expect(form.get('step')).toBe('ine_frente');
+        expect(form.get('idFirma')).toBe('7');
+        expect(form.get('webCamera')).toBe('data:image/png;base64,AAAA');
+        expect(form.get('file')).toBeNull();
+        return HttpResponse.json({ Success: true, Step: 1 });
+      }),
+    );
+    const res = await client.saveFile({
+      step: 'ine_frente',
+      idFirma: 7,
+      webCameraDataUrl: 'data:image/png;base64,AAAA',
+    });
+    expect(res.Success).toBe(true);
+  });
+
+  it('para step firma envía el dataURL como string en el campo file, sin webCamera', async () => {
     server.use(
       http.post(`${BASE}/api/asignado/autografa/save_file`, async ({ request }) => {
         const form = await request.formData();
         expect(form.get('token')).toBe('tok123');
         expect(form.get('step')).toBe('firma');
         expect(form.get('idFirma')).toBe('7');
-        expect(form.get('webCamera')).toBe('data:image/png;base64,AAAA');
-        expect(form.get('file')).toBeNull();
+        const file = form.get('file');
+        expect(typeof file).toBe('string');
+        expect(file as string).toMatch(/^data:image\//);
+        expect(form.get('webCamera')).toBeNull();
         return HttpResponse.json({ Success: true, Step: 1 });
       }),
     );

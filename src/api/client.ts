@@ -42,11 +42,21 @@ export class ApiClient {
     step: SaveFileStep;
     idFirma: number;
     file?: Blob;               // upload de archivo (campo 'file')
-    webCameraDataUrl?: string; // captura de cámara/canvas (campo 'webCamera', dataURL)
+    webCameraDataUrl?: string; // captura de cámara/canvas; campo 'webCamera' en INE,
+                                // campo 'file' (como string) cuando step === 'firma'
   }): Promise<{ Success: boolean; Step: number }> {
     const form = new FormData();
     if (params.file) form.append('file', params.file, 'capture.jpg');
-    if (params.webCameraDataUrl) form.append('webCamera', params.webCameraDataUrl);
+    if (params.webCameraDataUrl) {
+      // El backend (AsignadoController::saveSignatoryFile) solo lee el dataURL
+      // de la firma autógrafa desde el campo 'file' como string cuando
+      // step === 'firma'; para los pasos de INE lee el campo 'webCamera'.
+      if (params.step === 'firma') {
+        form.append('file', params.webCameraDataUrl);
+      } else {
+        form.append('webCamera', params.webCameraDataUrl);
+      }
+    }
     form.append('token', this.token);
     form.append('step', params.step);
     form.append('idFirma', String(params.idFirma));

@@ -21,6 +21,7 @@
   "files": ["dist"],
   "sideEffects": ["*.css"],
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build": "tsup",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
