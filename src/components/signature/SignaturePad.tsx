@@ -19,11 +19,22 @@ export function SignaturePad({ strokeColor, strokeWidth, onDirtyChange, padRef }
   const drawing = useRef(false);
   const last = useRef({ x: 0, y: 0 });
   const dirty = useRef(false);
+  // se incrementa en cada resize(); permite que un Image.onload tardío (p.ej.
+  // interrumpido por un cambio de orientación) detecte que quedó obsoleto y
+  // no pinte por encima de un trazo dibujado mientras tanto.
+  const resizeGeneration = useRef(0);
 
   useImperativeHandle(padRef, () => ({
     clear() {
       const c = canvasRef.current!;
-      c.getContext('2d')!.clearRect(0, 0, c.width, c.height);
+      const ctx = c.getContext('2d')!;
+      // resetea la transformación (scale por dpr) antes de limpiar: así el
+      // rect siempre cubre el canvas completo sin depender de qué escala
+      // haya quedado aplicada por el último resize().
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.restore();
       dirty.current = false;
       onDirtyChange?.(false);
     },
@@ -34,6 +45,7 @@ export function SignaturePad({ strokeColor, strokeWidth, onDirtyChange, padRef }
     const canvas = canvasRef.current!;
     const dpr = window.devicePixelRatio || 1;
     const resize = () => {
+      const generation = ++resizeGeneration.current;
       // preserva el dibujo al redimensionar
       const prev = canvas.toDataURL();
       canvas.width = canvas.offsetWidth * dpr;
@@ -41,8 +53,12 @@ export function SignaturePad({ strokeColor, strokeWidth, onDirtyChange, padRef }
       canvas.getContext('2d')!.scale(dpr, dpr);
       if (dirty.current) {
         const img = new Image();
-        img.onload = () =>
+        img.onload = () => {
+          // otro resize() ya arrancó después de este: esta imagen es una
+          // instantánea vieja, descartarla en vez de pisar el trazo actual.
+          if (generation !== resizeGeneration.current) return;
           canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
+        };
         img.src = prev;
       }
     };
@@ -87,9 +103,14 @@ export function SignaturePad({ strokeColor, strokeWidth, onDirtyChange, padRef }
       onPointerUp={() => {
         drawing.current = false;
       }}
-      onPointerLeave={() => {
+      onPointerCancel={() => {
+        // scroll/gesto del sistema interrumpe el trazo en mobile
         drawing.current = false;
       }}
+      // sin onPointerLeave: con setPointerCapture activo, salir del canvas
+      // durante un trazo NO debe detener el dibujo (el navegador sigue
+      // entregando los eventos al mismo elemento) — pointerup/pointercancel
+      // son las únicas señales válidas de fin de trazo.
     />
   );
 }
