@@ -34,4 +34,10 @@ describe('PdfViewer', () => {
     render(<PdfViewer url="/bad.pdf" />);
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
   });
+
+  it('usa el workerSrc explícito (necesario para consumidores CJS)', async () => {
+    const { GlobalWorkerOptions } = await import('pdfjs-dist');
+    render(<PdfViewer url="/doc.pdf" workerSrc="/custom-worker.js" />);
+    await waitFor(() => expect(GlobalWorkerOptions.workerSrc).toBe('/custom-worker.js'));
+  });
 });
