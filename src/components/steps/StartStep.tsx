@@ -170,7 +170,7 @@ export function StartStep() {
         </div>
 
         <div className="digid-start__main">
-          <PdfViewer url={pdfUrl} />
+          <PdfViewer url={pdfUrl} toolbar />
           <div className="digid-download-box">
             <a href={api.fileUrl(`/docments/verarchivo/${data.document.id}`)} target="_blank" rel="noopener noreferrer">
               {s.start.download}

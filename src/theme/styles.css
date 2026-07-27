@@ -45,8 +45,25 @@
 .digid-toast--success { background: #22ad5c; }
 .digid-toast--warning { background: #d97706; }
 .digid-pdf { border: 1px solid var(--digid-border); border-radius: var(--digid-radius);
-  overflow-y: auto; background: #6b7280; max-height: 600px; }
-.digid-pdf__pages { position: relative; display: flex; flex-direction: column; align-items: center; }
+  overflow: auto; background: #6b7280; max-height: 600px; }
+.digid-pdf--with-toolbar { border-top-left-radius: 0; border-top-right-radius: 0; }
+.digid-pdf__pages { position: relative; display: flex; flex-direction: column; align-items: stretch; }
+.digid-pdf-toolbar {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border: 1px solid var(--digid-border); border-radius: 8px 8px 0 0;
+  background: #f9fafb; font-size: 14px;
+}
+.digid-pdf-toolbar button {
+  width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--digid-border); border-radius: 6px; background: #fff; cursor: pointer;
+}
+.digid-pdf-toolbar button:hover:not(:disabled) { background: #f3f4f6; }
+.digid-pdf-toolbar button:disabled { opacity: 0.5; cursor: not-allowed; }
+.digid-pdf-toolbar input[type='number'] {
+  width: 48px; height: 32px; text-align: center;
+  border: 1px solid var(--digid-border); border-radius: 6px;
+}
+.digid-pdf-toolbar__sep { width: 1px; height: 20px; background: var(--digid-border); }
 .digid-sign-overlay { position: absolute; border: 3px dashed #5d5d5d; z-index: 5;
   transform-origin: top left; }
 .digid-sign-overlay img { width: 100%; height: 100%; object-fit: contain; }

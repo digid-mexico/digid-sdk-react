@@ -17,15 +17,15 @@ vi.mock('../pdf/PdfViewer', () => ({
   // que lo hace desde un efecto tras cargar el PDF). Llamarlo directo en el
   // cuerpo del render dispararía un setState del padre en cada re-render
   // (referencia de array nueva cada vez) y produciría un loop infinito.
-  PdfViewer: ({ onPagesRendered, children }: {
-    onPagesRendered?: (p: unknown[]) => void; children?: React.ReactNode;
+  PdfViewer: ({ onPagesRendered, children, toolbar }: {
+    onPagesRendered?: (p: unknown[]) => void; children?: React.ReactNode; toolbar?: boolean;
   }) => {
     const onPagesRenderedRef = useRef(onPagesRendered);
     onPagesRenderedRef.current = onPagesRendered;
     useEffect(() => {
       onPagesRenderedRef.current?.([{ numPage: 1, width: 612, height: 792 }]);
     }, []);
-    return <div data-testid="pdf-mock">{children}</div>;
+    return <div data-testid="pdf-mock" data-toolbar={String(!!toolbar)}>{children}</div>;
   },
 }));
 
@@ -93,6 +93,12 @@ describe('StartStep', () => {
     renderStep(<StartStep />, ctx);
     await userEvent.click(screen.getByRole('button', { name: es.start.exit }));
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'EXIT', reason: 'user_exit' });
+  });
+
+  it('habilita el toolbar de zoom/navegación del PdfViewer en la vista de revisión', () => {
+    const ctx = makeCtx();
+    renderStep(<StartStep />, ctx);
+    expect(screen.getByTestId('pdf-mock')).toHaveAttribute('data-toolbar', 'true');
   });
 
   describe('con Representante Legal', () => {
@@ -374,5 +380,12 @@ describe('PlaceSignaturesStep', () => {
     const { container } = renderStep(<PlaceSignaturesStep />, ctx);
     await screen.findByRole('button', { name: /Firma 1\/2/ });
     expect(container.querySelectorAll('.digid-sign-overlay').length).toBeGreaterThan(0);
+  });
+
+  it('NO habilita el toolbar de zoom (el zoom desalinearía el cálculo de overlays)', async () => {
+    const { ctx } = ctxWithFirmas();
+    renderStep(<PlaceSignaturesStep />, ctx);
+    await screen.findByRole('button', { name: /Firma 1\/2/ });
+    expect(screen.getByTestId('pdf-mock')).toHaveAttribute('data-toolbar', 'false');
   });
 });
