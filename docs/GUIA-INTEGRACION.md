@@ -29,13 +29,25 @@ ejecución, y apaga la cámara en cuanto termina de usarla.
 
 ---
 
-## 2. Requisitos previos
+## 2. Ambientes
+
+| Ambiente | `baseUrl` |
+|---|---|
+| **Producción** | `https://digidmexico.com.mx` |
+| **Pruebas** | `https://pruebas.digidmexico.com.mx` |
+
+Usa el ambiente de **pruebas** durante el desarrollo de tu integración (los tokens de
+un ambiente no funcionan en el otro), y cambia a producción al salir en vivo.
+
+---
+
+## 3. Requisitos previos
 
 Antes de integrar necesitas:
 
 1. **Una cuenta de cliente en Digid** con acceso a la API de integración
    (contacto: soporte de Digid).
-2. **El token del firmante** para cada proceso de firma (ver [sección 4](#4-obtención-del-token-del-firmante)).
+2. **El token del firmante** para cada proceso de firma (ver [sección 5](#5-obtención-del-token-del-firmante)).
 3. **React 18 o superior** en tu proyecto (el SDK lo declara como *peer dependency*).
 4. **HTTPS en producción.** La captura con cámara usa `getUserMedia`, que los
    navegadores solo permiten en contextos seguros (`https://` o `localhost`).
@@ -47,7 +59,7 @@ Antes de integrar necesitas:
 
 ---
 
-## 3. Instalación
+## 4. Instalación
 
 ```bash
 npm install @digid/firma-autografa-react
@@ -58,14 +70,14 @@ transitiva; React y ReactDOM deben existir ya en tu proyecto.
 
 ---
 
-## 4. Obtención del token del firmante
+## 5. Obtención del token del firmante
 
 Cada proceso de firma en Digid está ligado a un **token único por firmante y
 documento**. Es el mismo token que aparece al final de los enlaces de firma que Digid
 envía por correo:
 
 ```
-https://app.digid.com.mx/firma_autografa/{token}
+https://digidmexico.com.mx/firma_autografa/{token}
 ```
 
 Formas de obtenerlo:
@@ -81,9 +93,9 @@ Formas de obtenerlo:
 
 ---
 
-## 5. Inicio rápido
+## 6. Inicio rápido
 
-### 5.1 Aplicación Vite / CRA / SPA
+### 6.1 Aplicación Vite / CRA / SPA
 
 ```tsx
 import { FirmaAutografa } from '@digid/firma-autografa-react';
@@ -93,7 +105,7 @@ export function PaginaDeFirma({ token }: { token: string }) {
   return (
     <FirmaAutografa
       token={token}
-      baseUrl="https://app.digid.com.mx"
+      baseUrl="https://digidmexico.com.mx"
       onComplete={() => {
         // El documento quedó firmado en Digid
         window.location.href = '/gracias';
@@ -111,7 +123,7 @@ export function PaginaDeFirma({ token }: { token: string }) {
 }
 ```
 
-### 5.2 Next.js (App Router)
+### 6.2 Next.js (App Router)
 
 El SDK usa APIs del navegador (cámara, canvas, PDF), por lo que debe renderizarse
 solo en el cliente:
@@ -142,7 +154,7 @@ export function Firmador({ token }: { token: string }) {
   return (
     <FirmaAutografa
       token={token}
-      baseUrl="https://app.digid.com.mx"
+      baseUrl="https://digidmexico.com.mx"
       onComplete={() => (window.location.href = '/gracias')}
     />
   );
@@ -151,15 +163,15 @@ export function Firmador({ token }: { token: string }) {
 
 ---
 
-## 6. Referencia de API
+## 7. Referencia de API
 
-### 6.1 `<FirmaAutografa>` — props
+### 7.1 `<FirmaAutografa>` — props
 
 | Prop | Tipo | Obligatoria | Default | Descripción |
 |---|---|---|---|---|
 | `token` | `string` | ✅ | — | Token del firmante para este proceso de firma. |
-| `baseUrl` | `string` | — | `''` (mismo origen) | Origen del backend de Digid, p. ej. `https://app.digid.com.mx`. Si tu app corre en un dominio distinto, es obligatorio y tu dominio debe estar habilitado en CORS. |
-| `theme` | `DigidTheme` | — | — | Colores de tu marca (ver [sección 7](#7-personalización-visual)). Los estilos que tu cuenta tenga configurados en Digid tienen prioridad sobre esta prop. |
+| `baseUrl` | `string` | — | `''` (mismo origen) | Origen del backend de Digid, `https://digidmexico.com.mx` (producción) o `https://pruebas.digidmexico.com.mx` (pruebas). Si tu app corre en un dominio distinto, es obligatorio y tu dominio debe estar habilitado en CORS. |
+| `theme` | `DigidTheme` | — | — | Colores de tu marca (ver [sección 8](#8-personalización-visual)). Los estilos que tu cuenta tenga configurados en Digid tienen prioridad sobre esta prop. |
 | `termsUrl` | `string` | — | T&C de Digid | URL de los términos y condiciones que se enlazan en el paso 1. |
 | `onComplete` | `() => void` | — | — | El firmante completó todo el proceso; el documento quedó firmado. |
 | `onExit` | `(reason: string) => void` | — | — | El proceso terminó sin firmar. Ver razones abajo. |
@@ -177,7 +189,7 @@ export function Firmador({ token }: { token: string }) {
 > navegar o mostrar la pantalla siguiente. Tras `onComplete` sí se muestra la
 > pantalla de éxito del SDK, además de dispararse el callback.
 
-### 6.2 Manejo de errores — `DigidError`
+### 7.2 Manejo de errores — `DigidError`
 
 `onError` recibe instancias de `DigidError` (exportado) con un campo `code`:
 
@@ -200,7 +212,7 @@ onError={(err) => {
 El detalle crudo de la respuesta del servidor está disponible en `err.detail`
 (solo para diagnóstico; no lo muestres al usuario final).
 
-### 6.3 Exports adicionales
+### 7.3 Exports adicionales
 
 Para integraciones avanzadas el paquete también exporta:
 
@@ -214,14 +226,14 @@ superficie existe para casos a la medida y puede evolucionar entre versiones men
 
 ---
 
-## 7. Personalización visual
+## 8. Personalización visual
 
-### 7.1 Prop `theme`
+### 8.1 Prop `theme`
 
 ```tsx
 <FirmaAutografa
   token={token}
-  baseUrl="https://app.digid.com.mx"
+  baseUrl="https://digidmexico.com.mx"
   theme={{
     primaryColor: '#0F62FE',    // botones y acentos
     buttonTextColor: '#FFFFFF', // texto de los botones primarios
@@ -236,7 +248,7 @@ superficie existe para casos a la medida y puede evolucionar entre versiones men
 - `logoUrl` existe en el tipo `DigidTheme` pero está **reservado para una versión
   futura**; hoy no se renderiza.
 
-### 7.2 CSS variables
+### 8.2 CSS variables
 
 El stylesheet del SDK (`styles.css`) define variables CSS con prefijo `--digid-*`
 sobre el contenedor `.digid-root`. Puedes sobreescribirlas desde tu propio CSS para
@@ -261,7 +273,7 @@ móntalo dentro de un contenedor con el ancho máximo que quieras (recomendado:
 
 ---
 
-## 8. Permisos del navegador y compatibilidad
+## 9. Permisos del navegador y compatibilidad
 
 | Permiso | Cuándo se solicita | Si el usuario lo niega |
 |---|---|---|
@@ -278,14 +290,14 @@ con cámara trasera, firma con el dedo). Asegúrate de servir tu página con
 
 ---
 
-## 9. Notas por tipo de proyecto
+## 10. Notas por tipo de proyecto
 
-### 9.1 Bundlers ESM (Vite, Next.js, webpack 5, Rollup)
+### 10.1 Bundlers ESM (Vite, Next.js, webpack 5, Rollup)
 
 Sin configuración extra: el visor de PDF resuelve automáticamente el *worker* de
 `pdfjs-dist` mediante `import.meta.url`.
 
-### 9.2 Consumidores CommonJS (Jest con transform CJS, SSR Node, bundlers legados)
+### 10.2 Consumidores CommonJS (Jest con transform CJS, SSR Node, bundlers legados)
 
 En el build CommonJS `import.meta` no existe, por lo que el worker de pdf.js no puede
 resolverse solo. Opciones:
@@ -298,34 +310,34 @@ resolverse solo. Opciones:
 Si no lo configuras, el visor mostrará el estado de error y registrará en consola un
 mensaje indicando exactamente esto.
 
-### 9.3 Content Security Policy (CSP)
+### 10.3 Content Security Policy (CSP)
 
 El SDK no carga scripts externos, así que funciona con CSP estricta. Asegúrate de
 permitir:
 
 ```
-connect-src https://app.digid.com.mx;   (API de Digid — ajusta al baseUrl real)
-img-src     'self' data: blob: https://app.digid.com.mx;
+connect-src https://digidmexico.com.mx;   (o pruebas.digidmexico.com.mx según el ambiente)
+img-src     'self' data: blob: https://digidmexico.com.mx;
 worker-src  'self' blob:;               (worker de pdf.js)
 media-src   'self' blob:;               (previsualización de cámara)
 ```
 
 ---
 
-## 10. Solución de problemas
+## 11. Solución de problemas
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
 | `onError` inmediato con código `NETWORK` y errores CORS en consola | Tu dominio no está en la lista de orígenes permitidos de Digid | Solicita a Digid el alta de tu dominio exacto (esquema + subdominio). |
 | `onError` con `INVALID_TOKEN` | Token mal copiado, vencido, o proceso ya cerrado | Verifica que pasas el token completo y que el documento sigue vigente. |
 | La cámara no abre | Página servida sin HTTPS, o permiso denegado | Sirve por HTTPS; el firmante siempre puede subir archivo como alternativa. |
-| El PDF no se muestra (mensaje de error del visor) | Worker de pdf.js no resuelto (build CJS) o PDF inaccesible | Ver sección 9.2; revisa en la pestaña Red si `/storage/files/...` responde 200. |
+| El PDF no se muestra (mensaje de error del visor) | Worker de pdf.js no resuelto (build CJS) o PDF inaccesible | Ver sección 10.2; revisa en la pestaña Red si `/storage/files/...` responde 200. |
 | El SDK muestra directamente la pantalla de éxito | El firmante ya había completado el proceso | Comportamiento esperado (estado del proceso en Digid). |
 | Los colores de mi `theme` no se aplican | Tu cuenta tiene estilos de marca configurados en Digid | Los estilos de la plataforma tienen prioridad; ajústalos en Digid o pide su retiro. |
 
 ---
 
-## 11. Checklist de salida a producción
+## 12. Checklist de salida a producción
 
 - [ ] Dominio(s) de producción dados de alta en el CORS de Digid.
 - [ ] Página de firma servida por **HTTPS**.
@@ -338,7 +350,7 @@ media-src   'self' blob:;               (previsualización de cámara)
 
 ---
 
-## 12. Soporte
+## 13. Soporte
 
 - Dudas de integración y alta de dominios CORS: **contacto@digid.com.mx**
 - Reporte de problemas del SDK: repositorio `digid-sdk-react` (issues).

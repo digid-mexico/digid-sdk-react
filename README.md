@@ -19,7 +19,7 @@ Requiere React >= 18 como peer dependency.
 
     <FirmaAutografa
       token={tokenDelFirmante}
-      baseUrl="https://app.digid.com.mx"
+      baseUrl="https://digidmexico.com.mx"   // pruebas: https://pruebas.digidmexico.com.mx
       onComplete={() => router.push('/gracias')}
       onExit={(reason) => console.log(reason)}   // 'user_exit' | 'already_signed' | 'document_cancelled'
       onError={(err) => console.error(err)}
