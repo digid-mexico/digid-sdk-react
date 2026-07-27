@@ -26,7 +26,11 @@ Requiere React >= 18 como peer dependency.
     />
 
 El flujo cubre: revisión del documento y aceptación de términos → captura de INE frontal
-→ INE reverso → creación de firma autógrafa → colocación de firmas sobre el PDF → confirmación.
+→ INE reverso → selfie (opcional) → creación de firma autógrafa → colocación de firmas
+sobre el PDF → confirmación. Las pantallas de INE frontal/reverso y selfie son
+condicionales: se muestran u omiten según las preferencias del documento configuradas en
+Digid (`Data.preferences` de `start_autografa`); si el backend no envía esas preferencias
+(o las envía incompletas), el SDK muestra las tres pantallas por default.
 
 ### Props
 
@@ -66,7 +70,7 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
 ## Desarrollo
 
     npm install
-    npm test            # vitest (76 tests)
+    npm test            # vitest (91 tests)
     npm run typecheck
     npm run build       # tsup → dist/
     npm run dev         # playground en http://localhost:5199/?token=<token>

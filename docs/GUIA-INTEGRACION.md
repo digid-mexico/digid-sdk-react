@@ -1,6 +1,6 @@
 # Guía de integración — SDK de Firma Autógrafa de Digid
 
-`@digid/firma-autografa-react` · v0.1.0
+`@digid/firma-autografa-react` · v0.2.0
 
 Esta guía está dirigida a equipos de desarrollo que quieren integrar el proceso de
 **firma autógrafa de Digid** dentro de su propia aplicación web, sin redirigir a sus
@@ -19,13 +19,30 @@ el mismo proceso certificado que ofrece Digid:
 | 1 | **Revisión del documento** | El firmante ve el PDF a firmar, puede descargarlo y acepta términos y condiciones. Si el documento requiere verificación de identidad, se muestra el aviso de consentimiento KYC. |
 | 2 | **Identificación (frente)** | Captura de la parte frontal de la identificación oficial (INE) con la cámara del dispositivo, o subiendo un archivo JPEG/PNG. |
 | 3 | **Identificación (reverso)** | Igual que el paso anterior, para el reverso. |
-| 4 | **Creación de la firma** | El firmante dibuja su firma autógrafa en un lienzo táctil (funciona con dedo, stylus o mouse). |
-| 5 | **Colocación de firmas** | El firmante confirma una por una las posiciones de su firma sobre el documento, viéndolas superpuestas en el PDF real. |
-| 6 | **Confirmación** | Pantalla de éxito. El documento queda firmado en Digid y tu aplicación recibe el callback `onComplete`. |
+| 4 | **Selfie** | El firmante se toma una selfie con la cámara frontal del dispositivo, o sube un archivo JPEG/PNG. |
+| 5 | **Creación de la firma** | El firmante dibuja su firma autógrafa en un lienzo táctil (funciona con dedo, stylus o mouse). |
+| 6 | **Colocación de firmas** | El firmante confirma una por una las posiciones de su firma sobre el documento, viéndolas superpuestas en el PDF real. |
+| 7 | **Confirmación** | Pantalla de éxito. El documento queda firmado en Digid y tu aplicación recibe el callback `onComplete`. |
+
+> **Pasos condicionales.** Los pasos 2, 3 y 4 (INE frente, INE reverso, selfie) no
+> siempre aparecen: se muestran u omiten según las preferencias que se hayan
+> configurado para ese documento al crearlo en Digid. Un documento configurado sin
+> requerir identificación, por ejemplo, salta directo del paso 1 al paso 5. Esto
+> requiere un backend que exponga esas preferencias en `Data.preferences` de
+> `start_autografa` (rama `feat/sdk-preferences-flags` del backend de Digid); si tu
+> backend todavía no las envía, el SDK muestra las tres pantallas por default (opción
+> más segura).
 
 Todo el estado del proceso vive en memoria del navegador: el SDK no usa
 `localStorage` ni `sessionStorage`, no carga scripts de terceros en tiempo de
 ejecución, y apaga la cámara en cuanto termina de usarla.
+
+### 1.1 Limitaciones
+
+Los documentos configurados en Digid con verificación de identidad/rostro a través
+del proveedor de KYC alojado (liveness) **no están soportados todavía** por este SDK;
+ese flujo sigue disponible únicamente en la aplicación web legacy de Digid. Soporte
+para este caso está planeado para una versión futura del SDK.
 
 ---
 
@@ -357,4 +374,4 @@ media-src   'self' blob:;               (previsualización de cámara)
 
 ---
 
-*Digid — plataforma de firma digital. Esta guía corresponde a la versión 0.1.0 del SDK.*
+*Digid — plataforma de firma digital. Esta guía corresponde a la versión 0.2.0 del SDK.*
