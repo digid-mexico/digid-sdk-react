@@ -56,7 +56,7 @@ export function useAutografaFlow(api: ApiClient) {
 
   // Refresca datos del asignado al entrar a pasos que dependen de archivos previos
   useEffect(() => {
-    if (['ineFront', 'ineBack', 'createSign'].includes(state.step)) void refreshAsignado();
+    if (['ineFront', 'ineBack', 'selfie', 'createSign'].includes(state.step)) void refreshAsignado();
   }, [state.step, refreshAsignado]);
 
   return { state, dispatch, asignado, refreshAsignado };

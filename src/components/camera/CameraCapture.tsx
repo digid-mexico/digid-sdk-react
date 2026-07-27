@@ -8,13 +8,15 @@ interface Props {
   onCapture: (dataUrl: string) => void;
   onCancel?: () => void;
   mirror?: boolean; // true en desktop (webcam frontal)
+  /** Cámara a solicitar: trasera (INE) o frontal (selfie). Default: trasera. */
+  facingMode?: 'environment' | 'user';
 }
 
-export function CameraCapture({ onCapture, onCancel, mirror = false }: Props) {
+export function CameraCapture({ onCapture, onCancel, mirror = false, facingMode = 'environment' }: Props) {
   const s = useStrings();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { stream, error, open, close } = useCamera();
+  const { stream, error, open, close } = useCamera(facingMode);
   const [preview, setPreview] = useState<string | null>(null);
 
   useEffect(() => { void open(); }, [open]);

@@ -8,6 +8,7 @@ import { Spinner } from './ui/Spinner';
 import { Toast } from './ui/Toast';
 import { StartStep } from './steps/StartStep';
 import { IdCaptureStep } from './steps/IdCaptureStep';
+import { SelfieStep } from './steps/SelfieStep';
 import { CreateSignStep } from './steps/CreateSignStep';
 import { PlaceSignaturesStep } from './steps/PlaceSignaturesStep';
 import { CompletedStep } from './steps/CompletedStep';
@@ -73,6 +74,7 @@ export function FirmaAutografa({
           {state.step === 'start' && <StartStep />}
           {state.step === 'ineFront' && <IdCaptureStep side="front" key="front" />}
           {state.step === 'ineBack' && <IdCaptureStep side="back" key="back" />}
+          {state.step === 'selfie' && <SelfieStep />}
           {state.step === 'createSign' && <CreateSignStep />}
           {state.step === 'placeSignatures' && <PlaceSignaturesStep />}
           {state.step === 'completed' && <CompletedStep />}

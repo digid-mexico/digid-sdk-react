@@ -40,7 +40,7 @@ const server = setupServer(
   http.get(`${BASE}/api/asignado/autografa`, () =>
     HttpResponse.json({
       Data: { nombre: 'Ana', status: 1, firma: { id: 3 },
-        files: { idFront: null, idBack: null, sign: null } },
+        files: { idFront: null, idBack: null, sign: null, selfie: null } },
     }),
   ),
   http.post(`${BASE}/api/asignado/autografa/save_file`, () =>
@@ -79,18 +79,69 @@ describe('FirmaAutografa — flujo completo', () => {
     await userEvent.upload(screen.getByTestId('digid-file-input'), jpeg);
     await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
 
-    // Paso 4: crear firma (dibujar)
+    // Paso 4: selfie
+    await screen.findByText(es.selfie.title);
+    await userEvent.upload(screen.getByTestId('digid-file-input'), jpeg);
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+
+    // Paso 5: crear firma (dibujar)
     await screen.findByText(es.createSign.heading);
     const canvas = screen.getByTestId('digid-signature-canvas');
     fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 5, clientY: 5 });
     fireEvent.pointerUp(canvas, { pointerId: 1 });
     await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
 
-    // Paso 5: colocación (1 firma) → finish
+    // Paso 6: colocación (1 firma) → finish
     await screen.findByText(es.placeSignatures.title);
     await userEvent.click(await screen.findByRole('button', { name: /Firma 1\/1/ }));
 
-    // Paso 6: completado
+    // Paso 7: completado
+    await screen.findByText(es.completed.title);
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
+  });
+
+  it('con preferences que desactivan INE/selfie, va directo a la creación de firma y completa el flujo', async () => {
+    server.use(
+      http.get(`${BASE}/api/archivofirma/start_autografa`, () =>
+        HttpResponse.json({
+          Success: true,
+          Data: {
+            document: { id: 9, nombre: 'contrato.pdf', archivo: 'a.pdf', estatus: 1, client: 5,
+              firmas: JSON.stringify([{ id: 'f1', firmante: 7, pagina: 1, xDoc: 100, ydoc: 100,
+                AnchoPagina: 612, altoPagina: 792, position: 0, nombre: 'Ana' }]) },
+            client: { id: 5, razonsocial: 'ACME' },
+            subAccount: null,
+            signatory: { id: 7, nombre: 'Ana', representantelegal: 0 },
+            assignament: { status: 1, idfirmante: 7, verifiacion_rostro: 0, verificacion_identificacion: 0 },
+            style: null, repre: null,
+            preferences: {
+              required_gps: 0, required_id_frontal: 0, required_id_reverso: 0, required_selfie: 0,
+            },
+            diff_documents: null,
+          },
+        }),
+      ),
+    );
+    const onComplete = vi.fn();
+    render(<FirmaAutografa token="tok" baseUrl={BASE} onComplete={onComplete} />);
+
+    // Paso 1: start
+    await screen.findByText(es.start.title);
+    await userEvent.click(screen.getByRole('checkbox'));
+    await userEvent.click(screen.getByRole('button', { name: es.start.continue }));
+
+    // Sin pantallas de INE/selfie: va directo a crear firma
+    await screen.findByText(es.createSign.heading);
+    const canvas = screen.getByTestId('digid-signature-canvas');
+    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 5, clientY: 5 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+
+    // Colocación (1 firma) → finish
+    await screen.findByText(es.placeSignatures.title);
+    await userEvent.click(await screen.findByRole('button', { name: /Firma 1\/1/ }));
+
+    // Completado
     await screen.findByText(es.completed.title);
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
   });
@@ -99,7 +150,7 @@ describe('FirmaAutografa — flujo completo', () => {
     server.use(
       http.get(`${BASE}/api/asignado/autografa`, () =>
         HttpResponse.json({ Data: { nombre: 'Ana', status: 3, firma: null,
-          files: { idFront: null, idBack: null, sign: null } } }),
+          files: { idFront: null, idBack: null, sign: null, selfie: null } } }),
       ),
     );
     render(<FirmaAutografa token="tok" baseUrl={BASE} />);
@@ -110,7 +161,7 @@ describe('FirmaAutografa — flujo completo', () => {
     server.use(
       http.get(`${BASE}/api/asignado/autografa`, () =>
         HttpResponse.json({ Data: { nombre: 'Ana', status: 2, firma: null,
-          files: { idFront: null, idBack: null, sign: null } } }),
+          files: { idFront: null, idBack: null, sign: null, selfie: null } } }),
       ),
     );
     render(<FirmaAutografa token="tok" baseUrl={BASE} />);

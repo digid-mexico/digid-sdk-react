@@ -25,6 +25,15 @@ describe('useCamera', () => {
     });
   });
 
+  it('abre la cámara frontal cuando se solicita facingMode "user"', async () => {
+    const { result } = renderHook(() => useCamera('user'));
+    await act(() => result.current.open());
+    await waitFor(() => expect(result.current.stream).toBe(fakeStream));
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+      video: { facingMode: 'user' },
+    });
+  });
+
   it('detiene todos los tracks al cerrar', async () => {
     const { result } = renderHook(() => useCamera());
     await act(() => result.current.open());

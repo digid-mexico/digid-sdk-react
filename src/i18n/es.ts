@@ -25,6 +25,11 @@ export const es = {
     back: 'Regresar',
     continue: 'Continuar',
   },
+  selfie: {
+    title: 'Selfie',
+    hint: 'Tómate una selfie',
+    legible: 'Asegúrese de que su rostro sea claramente visible y esté bien iluminado',
+  },
   createSign: {
     title: 'Valida tu información',
     heading: '¡Llegó el momento de firmar!',

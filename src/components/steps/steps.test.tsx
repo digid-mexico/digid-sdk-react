@@ -4,9 +4,11 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StartStep } from './StartStep';
 import { IdCaptureStep } from './IdCaptureStep';
+import { SelfieStep } from './SelfieStep';
 import { CreateSignStep } from './CreateSignStep';
 import { PlaceSignaturesStep } from './PlaceSignaturesStep';
 import { FlowContext, type FlowContextValue } from '../../core/FlowContext';
+import { computeStepOrder } from '../../core/flowReducer';
 import { es, I18nProvider } from '../../i18n';
 import type { StartAutografaData } from '../../types/api';
 
@@ -42,10 +44,10 @@ function makeCtx(overrides: Partial<FlowContextValue> = {}): FlowContextValue {
       fileUrl: (p: string) => p,
       saveFile: vi.fn().mockResolvedValue({ Success: true, Step: 0 }),
     } as never,
-    state: { step: 'start', startData, exitReason: null, error: null },
+    state: { step: 'start', startData, order: computeStepOrder(startData.preferences), exitReason: null, error: null },
     dispatch: vi.fn(),
     asignado: { nombre: 'Ana López', status: 1, firma: { id: 3 },
-      files: { idFront: null, idBack: null, sign: null } },
+      files: { idFront: null, idBack: null, sign: null, selfie: null } },
     refreshAsignado: vi.fn().mockResolvedValue(undefined),
     notify: vi.fn(),
     setBusy: vi.fn(),
@@ -129,7 +131,7 @@ describe('IdCaptureStep', () => {
   it('muestra la imagen previa si el backend ya tiene el archivo', () => {
     const ctx = makeCtx({
       asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
-        files: { idFront: 'QUJD', idBack: null, sign: null } },
+        files: { idFront: 'QUJD', idBack: null, sign: null, selfie: null } },
     });
     renderStep(<IdCaptureStep side="front" />, ctx);
     expect(screen.getByAltText(/identificación/i)).toHaveAttribute(
@@ -159,6 +161,43 @@ describe('IdCaptureStep', () => {
   });
 });
 
+describe('SelfieStep', () => {
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockRejectedValue(new Error('no cam in jsdom')) },
+    });
+  });
+
+  it('sube el archivo con step=selfie y avanza', async () => {
+    const ctx = makeCtx();
+    renderStep(<SelfieStep />, ctx);
+    const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'selfie.jpg', {
+      type: 'image/jpeg',
+    });
+    await userEvent.upload(input, file);
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+    await vi.waitFor(() =>
+      expect(ctx.api.saveFile).toHaveBeenCalledWith(
+        expect.objectContaining({ step: 'selfie', idFirma: 3 }),
+      ),
+    );
+    expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
+  });
+
+  it('muestra la selfie previa si el backend ya la tiene guardada', () => {
+    const ctx = makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
+    });
+    renderStep(<SelfieStep />, ctx);
+    expect(screen.getByAltText('Selfie')).toHaveAttribute(
+      'src', expect.stringContaining('data:image/jpeg;base64,QUJD'),
+    );
+  });
+});
+
 describe('CreateSignStep', () => {
   it('Continuar deshabilitado hasta dibujar', () => {
     const ctx = makeCtx();
@@ -178,6 +217,7 @@ describe('PlaceSignaturesStep', () => {
       state: {
         step: 'placeSignatures',
         startData: { ...startData, document: { ...startData.document, firmas } },
+        order: computeStepOrder(startData.preferences),
         exitReason: null, error: null,
       },
     });
