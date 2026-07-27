@@ -88,6 +88,112 @@ describe('StartStep', () => {
     await userEvent.click(screen.getByRole('button', { name: es.start.exit }));
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'EXIT', reason: 'user_exit' });
   });
+
+  describe('con Representante Legal', () => {
+    function ctxWithRepre(overrides: Partial<FlowContextValue> = {}) {
+      const repreStartData = {
+        ...startData,
+        repre: { firma: '/storage/files/5/signatories/7/firma.png' },
+      } as StartAutografaData;
+      return makeCtx({
+        state: {
+          step: 'start', startData: repreStartData,
+          order: computeStepOrder(repreStartData.preferences), exitReason: null, error: null,
+        },
+        api: {
+          fileUrl: (p: string) => p,
+          validRepre: vi.fn().mockResolvedValue({ Success: true }),
+          finishAutografa: vi.fn().mockResolvedValue({ Success: true }),
+          forgotPwdRl: vi.fn().mockResolvedValue({ Success: true }),
+        } as never,
+        ...overrides,
+      });
+    }
+
+    it('muestra la sección de RL con la imagen de firma y oculta el footer normal', () => {
+      const ctx = ctxWithRepre();
+      renderStep(<StartStep />, ctx);
+      const img = screen.getByAltText(es.rl.signAlt);
+      expect(img).toHaveAttribute('src', expect.stringContaining('/storage/files/5/signatories/7/firma.png'));
+      expect(screen.queryByRole('button', { name: es.start.continue })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: es.start.exit })).not.toBeInTheDocument();
+    });
+
+    it('Continuar (RL) deshabilitado hasta escribir contraseña (>=3) y aceptar términos', async () => {
+      const ctx = ctxWithRepre();
+      renderStep(<StartStep />, ctx);
+      const btn = screen.getByRole('button', { name: es.rl.continue });
+      expect(btn).toBeDisabled();
+      await userEvent.type(screen.getByPlaceholderText(es.rl.passwordPlaceholder), 'ab');
+      expect(btn).toBeDisabled();
+      await userEvent.click(screen.getByRole('checkbox'));
+      expect(btn).toBeDisabled(); // pwd todavía < 3
+      await userEvent.type(screen.getByPlaceholderText(es.rl.passwordPlaceholder), 'c');
+      expect(btn).toBeEnabled();
+    });
+
+    it('éxito: valida contraseña, finaliza la firma y navega a completado', async () => {
+      const ctx = ctxWithRepre();
+      renderStep(<StartStep />, ctx);
+      await userEvent.type(screen.getByPlaceholderText(es.rl.passwordPlaceholder), 'secreta');
+      await userEvent.click(screen.getByRole('checkbox'));
+      await userEvent.click(screen.getByRole('button', { name: es.rl.continue }));
+      await vi.waitFor(() => expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'GOTO', step: 'completed' }));
+      expect(ctx.api.validRepre).toHaveBeenCalledWith('secreta');
+      expect(ctx.api.finishAutografa).toHaveBeenCalled();
+    });
+
+    it('contraseña incorrecta: notifica error específico y no llama finishAutografa ni navega', async () => {
+      const { DigidError } = await import('../../types/api');
+      const ctx = ctxWithRepre({
+        api: {
+          fileUrl: (p: string) => p,
+          validRepre: vi.fn().mockRejectedValue(new DigidError('INVALID_TOKEN', 'rechazado')),
+          finishAutografa: vi.fn().mockResolvedValue({ Success: true }),
+          forgotPwdRl: vi.fn().mockResolvedValue({ Success: true }),
+        } as never,
+      });
+      renderStep(<StartStep />, ctx);
+      await userEvent.type(screen.getByPlaceholderText(es.rl.passwordPlaceholder), 'mala123');
+      await userEvent.click(screen.getByRole('checkbox'));
+      await userEvent.click(screen.getByRole('button', { name: es.rl.continue }));
+      await vi.waitFor(() => expect(ctx.notify).toHaveBeenCalledWith('error', es.rl.wrongPassword));
+      expect(ctx.api.finishAutografa).not.toHaveBeenCalled();
+      expect(ctx.dispatch).not.toHaveBeenCalledWith({ type: 'GOTO', step: 'completed' });
+    });
+
+    it('un doble click en Continuar durante una validación lenta no duplica el envío', async () => {
+      const ctx = ctxWithRepre();
+      let resolveValid!: (v: { Success: boolean }) => void;
+      const pending = new Promise<{ Success: boolean }>((resolve) => { resolveValid = resolve; });
+      (ctx.api.validRepre as ReturnType<typeof vi.fn>).mockReturnValue(pending);
+      renderStep(<StartStep />, ctx);
+      await userEvent.type(screen.getByPlaceholderText(es.rl.passwordPlaceholder), 'secreta');
+      await userEvent.click(screen.getByRole('checkbox'));
+      const btn = screen.getByRole('button', { name: es.rl.continue });
+      await userEvent.click(btn);
+      await userEvent.click(btn);
+      await act(async () => { resolveValid({ Success: true }); });
+      await vi.waitFor(() => expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'GOTO', step: 'completed' }));
+      expect(ctx.api.validRepre).toHaveBeenCalledTimes(1);
+    });
+
+    it('el enlace de contraseña olvidada abre un modal que envía forgotPwdRl con el correo', async () => {
+      const ctx = ctxWithRepre();
+      renderStep(<StartStep />, ctx);
+      await userEvent.click(screen.getByRole('button', { name: es.rl.forgot }));
+      const sendBtn = screen.getByRole('button', { name: es.rl.resetSend });
+      expect(sendBtn).toBeDisabled();
+      await userEvent.type(screen.getByPlaceholderText(es.rl.resetPlaceholder), 'no-es-email');
+      expect(sendBtn).toBeDisabled();
+      await userEvent.clear(screen.getByPlaceholderText(es.rl.resetPlaceholder));
+      await userEvent.type(screen.getByPlaceholderText(es.rl.resetPlaceholder), 'rl@example.com');
+      expect(sendBtn).toBeEnabled();
+      await userEvent.click(sendBtn);
+      await vi.waitFor(() => expect(ctx.api.forgotPwdRl).toHaveBeenCalledWith('rl@example.com'));
+      expect(ctx.notify).toHaveBeenCalledWith('success', es.rl.resetSent);
+    });
+  });
 });
 
 describe('IdCaptureStep', () => {

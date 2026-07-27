@@ -49,6 +49,9 @@ const server = setupServer(
   http.post(`${BASE}/api/archivofirma/finish_autografa`, () =>
     HttpResponse.json({ Success: true }),
   ),
+  http.post(`${BASE}/api/archivofirma/valid_repre`, () =>
+    HttpResponse.json({ Success: true, Data: '' }),
+  ),
 );
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
@@ -166,5 +169,37 @@ describe('FirmaAutografa — flujo completo', () => {
     );
     render(<FirmaAutografa token="tok" baseUrl={BASE} />);
     await screen.findByText(es.completed.title);
+  });
+
+  it('firmante Representante Legal: valida contraseña y completa desde la pantalla de revisión', async () => {
+    server.use(
+      http.get(`${BASE}/api/archivofirma/start_autografa`, () =>
+        HttpResponse.json({
+          Success: true,
+          Data: {
+            document: { id: 9, nombre: 'contrato.pdf', archivo: 'a.pdf', estatus: 1, client: 5,
+              firmas: null },
+            client: { id: 5, razonsocial: 'ACME' },
+            subAccount: null,
+            signatory: { id: 7, nombre: 'Ana', representantelegal: 1 },
+            assignament: { status: 1, idfirmante: 7, verifiacion_rostro: 0, verificacion_identificacion: 0 },
+            style: null,
+            repre: { firma: '/storage/files/5/signatories/7/firma_9.png' },
+            preferences: null,
+            diff_documents: null,
+          },
+        }),
+      ),
+    );
+    const onComplete = vi.fn();
+    render(<FirmaAutografa token="tok" baseUrl={BASE} onComplete={onComplete} />);
+
+    await screen.findByText(es.start.title);
+    await userEvent.click(screen.getByRole('checkbox'));
+    await userEvent.type(screen.getByPlaceholderText(es.rl.passwordPlaceholder), 'secreta123');
+    await userEvent.click(screen.getByRole('button', { name: es.rl.continue }));
+
+    await screen.findByText(es.completed.title);
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
   });
 });
