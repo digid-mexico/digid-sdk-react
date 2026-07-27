@@ -102,7 +102,12 @@ export function SelfieStep() {
       {cameraOpen ? (
         <CameraCapture
           facingMode="user"
-          mirror
+          // mirror voltea horizontalmente el frame CAPTURADO (no solo el
+          // preview), así que debe ser condicional al dispositivo, igual que
+          // en IdCaptureStep: en desktop la webcam frontal se ve espejada por
+          // convención (IsComputer() en el flujo legacy); en móvil la cámara
+          // frontal ya se captura en la orientación correcta y no debe voltearse.
+          mirror={!isMobileDevice()}
           onCancel={() => setCameraOpen(false)}
           onCapture={(dataUrl) => {
             setSource({ kind: 'camera', dataUrl });

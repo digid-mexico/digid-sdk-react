@@ -161,4 +161,14 @@ describe('flowReducer — orden dinámico según preferences', () => {
     s = flowReducer(s, { type: 'BACK' });
     expect(s.step).toBe('start');
   });
+
+  it('order con un solo skip (solo required_selfie=0): NEXT desde ineBack llega a createSign y BACK regresa a ineBack', () => {
+    let s = loaded(withPrefs({ required_gps: 0, required_selfie: 0 }));
+    expect(s.order).toEqual(['start', 'ineFront', 'ineBack', 'createSign', 'placeSignatures', 'completed']);
+    s = flowReducer(s, { type: 'GOTO', step: 'ineBack' });
+    s = flowReducer(s, { type: 'NEXT' });
+    expect(s.step).toBe('createSign');
+    s = flowReducer(s, { type: 'BACK' });
+    expect(s.step).toBe('ineBack');
+  });
 });
