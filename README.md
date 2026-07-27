@@ -33,7 +33,9 @@ Digid (`Data.preferences` de `start_autografa`); si el backend no envía esas pr
 (o las envía incompletas), el SDK muestra las tres pantallas por default. Los firmantes
 Representante Legal (con firma y contraseña ya registradas en Digid) firman directo desde
 la pantalla de revisión, sin las pantallas de identificación/selfie. El contenedor raíz
-(`.digid-root`) trae `max-width: 900px` y se centra solo dentro de tu página.
+(`.digid-root`) trae `max-width: 900px` y se centra solo dentro de tu página. En la vista de
+revisión, el visor de PDF incluye controles de zoom (50%–300%) y navegación rápida entre
+páginas.
 
 ### Props
 

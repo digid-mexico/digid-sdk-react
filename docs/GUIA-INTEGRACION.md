@@ -16,7 +16,7 @@ el mismo proceso certificado que ofrece Digid:
 
 | Paso | Pantalla | Descripción |
 |---|---|---|
-| 1 | **Revisión del documento** | El firmante ve el PDF a firmar, puede descargarlo y acepta términos y condiciones. Si el documento requiere verificación de identidad, se muestra el aviso de consentimiento KYC. |
+| 1 | **Revisión del documento** | El firmante ve el PDF a firmar, puede descargarlo y acepta términos y condiciones. Si el documento requiere verificación de identidad, se muestra el aviso de consentimiento KYC. El visor incluye controles de zoom (50%–300%) y navegación rápida entre páginas. |
 | 2 | **Identificación (frente)** | Captura de la parte frontal de la identificación oficial (INE) con la cámara del dispositivo, o subiendo un archivo JPEG/PNG. |
 | 3 | **Identificación (reverso)** | Igual que el paso anterior, para el reverso. |
 | 4 | **Selfie** | El firmante se toma una selfie con la cámara frontal del dispositivo, o sube un archivo JPEG/PNG. |
