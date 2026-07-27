@@ -70,7 +70,7 @@ export const es = {
     zoomOut: 'Alejar',
     fitWidth: 'Ajustar al ancho',
     page: 'Página',
-    pageOf: (n: number, total: number) => `de ${total}`,
+    pageOf: (total: number) => `de ${total}`,
     prevPage: 'Página anterior',
     nextPage: 'Página siguiente',
   },

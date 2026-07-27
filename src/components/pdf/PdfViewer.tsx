@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import { useStrings } from '../../i18n';
 
 export interface PageInfo {
@@ -85,6 +86,12 @@ function pageAtScrollTop(pages: PageInfo[], scrollTop: number): number {
   return current;
 }
 
+/** Documento + páginas ya descargados y parseados, listos para renderizar a cualquier escala. */
+interface LoadedDoc {
+  pdfPages: PDFPageProxy[];
+  maxWidth: number; // ancho (scale 1) de la página más ancha, para calcular la escala de ajuste
+}
+
 export function PdfViewer({
   url, onPagesRendered, workerSrc, children, className, toolbar = false,
 }: Props) {
@@ -95,8 +102,10 @@ export function PdfViewer({
   const onPagesRenderedRef = useRef(onPagesRendered);
   const pagesInfoRef = useRef<PageInfo[]>([]);
   const rafPendingRef = useRef(false);
+  const pageInputFocusedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [loadedDoc, setLoadedDoc] = useState<LoadedDoc | null>(null);
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageInput, setPageInput] = useState('1');
@@ -109,36 +118,37 @@ export function PdfViewer({
     pagesInfoRef.current = pages;
   }, [pages]);
 
+  // No pisa lo que el usuario está escribiendo: si el input de página tiene
+  // foco, un cambio de currentPage disparado por el scroll no debe
+  // reemplazar el valor que está tecleando.
   useEffect(() => {
+    if (pageInputFocusedRef.current) return;
     setPageInput(String(currentPage));
   }, [currentPage]);
 
+  // Efecto A: descarga y parsea el documento UNA SOLA VEZ por `url`/`workerSrc`.
+  // Deliberadamente NO depende de `zoom`: cambiar el zoom nunca debe volver a
+  // pedir el documento (getDocument) ni sus páginas (getPage) — eso sería un
+  // re-fetch + re-parse completo por cada click de zoom. El resultado
+  // (PDFPageProxy[] ya obtenidos) se cachea en `loadedDoc` y el efecto B lo
+  // reutiliza para renderizar a distintas escalas.
   useEffect(() => {
     let cancelled = false;
+    let doc: PDFDocumentProxy | null = null;
+    setLoadedDoc(null);
     (async () => {
       try {
         // Dynamic import: pdfjs (~350KB) solo se descarga cuando se muestra un PDF.
         const pdfjs = await import('pdfjs-dist');
         configureWorker(pdfjs, workerSrc);
         const pdf = await pdfjs.getDocument({ url }).promise;
-        if (cancelled || !pagesRef.current || !containerRef.current) return;
+        if (cancelled) {
+          pdf.destroy?.();
+          return;
+        }
+        doc = pdf;
 
-        // Preserva la posición relativa del scroll a través del re-render
-        // (se dispara también cuando cambia el zoom, no solo al cargar un PDF
-        // nuevo): captura la proporción ANTES de tocar el DOM.
-        const scrollRatio = containerRef.current.scrollHeight > 0
-          ? containerRef.current.scrollTop / containerRef.current.scrollHeight
-          : 0;
-
-        // limpia solo los canvas que este componente agregó, nunca los
-        // overlays de React (children) que pudieran compartir el contenedor.
-        canvasesRef.current.forEach((c) => c.remove());
-        canvasesRef.current = [];
-
-        // Escala: ancho del contenedor / página más ancha, multiplicado por
-        // el zoom del toolbar (1 si no hay toolbar). Reutiliza los
-        // PDFPageProxy obtenidos aquí para no pedirlos dos veces por página.
-        const pdfPages = [];
+        const pdfPages: PDFPageProxy[] = [];
         let maxWidth = 0;
         for (let i = 1; i <= pdf.numPages; i++) {
           if (cancelled) return;
@@ -147,39 +157,8 @@ export function PdfViewer({
           const vp = page.getViewport({ scale: 1 });
           maxWidth = Math.max(maxWidth, vp.width);
         }
-        const scale = ((containerRef.current.clientWidth || maxWidth) / maxWidth) * zoom;
-        const dpr = Math.max(1.5, window.devicePixelRatio || 1);
-
-        const rendered: PageInfo[] = [];
-        for (const [idx, page] of pdfPages.entries()) {
-          const numPage = idx + 1;
-          const viewport = page.getViewport({ scale: scale * dpr });
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          canvas.style.width = `${viewport.width / dpr}px`;
-          canvas.style.height = `${viewport.height / dpr}px`;
-          canvas.style.marginBottom = `${PAGE_GAP}px`;
-          // Centra el canvas cuando es más angosto que el contenedor y
-          // permite que se desborde (scrolleable) cuando el zoom lo hace más
-          // ancho: con `.digid-pdf__pages` en `align-items: stretch`, un
-          // margen horizontal auto se resuelve a valores iguales cuando hay
-          // espacio libre (mismo resultado visual que `align-items: center`)
-          // y colapsa a 0 cuando el canvas desborda, permitiendo scroll.
-          canvas.style.marginInline = 'auto';
-          const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
-          await page.render({ canvasContext: ctx, viewport }).promise;
-          if (cancelled) return;
-          pagesRef.current.appendChild(canvas);
-          canvasesRef.current.push(canvas);
-          rendered.push({ numPage, width: viewport.width / dpr, height: viewport.height / dpr });
-        }
-
-        containerRef.current.scrollTop = scrollRatio * containerRef.current.scrollHeight;
-
-        setPages(rendered);
-        setCurrentPage((p) => Math.min(Math.max(1, p), rendered.length || 1));
-        onPagesRenderedRef.current?.(rendered);
+        if (cancelled) return;
+        setLoadedDoc({ pdfPages, maxWidth });
       } catch (err) {
         console.error(err);
         if (!cancelled) setError('No fue posible cargar el documento PDF.');
@@ -187,9 +166,79 @@ export function PdfViewer({
     })();
     return () => {
       cancelled = true;
+      // El mock de pdfjs-dist usado en tests no implementa destroy(); en
+      // producción libera los recursos del documento anterior al cambiar de url.
+      doc?.destroy?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, workerSrc, zoom]);
+  }, [url, workerSrc]);
+
+  // Efecto B: renderiza los canvases a partir de los PDFPageProxy YA
+  // CARGADOS por el efecto A. Depende de `zoom`, así que subir/bajar el zoom
+  // solo recalcula la escala y vuelve a dibujar — nunca re-descarga el PDF.
+  useEffect(() => {
+    if (!loadedDoc || !pagesRef.current || !containerRef.current) return;
+    let cancelled = false;
+    (async () => {
+      const container = containerRef.current;
+      const pagesEl = pagesRef.current;
+      if (!container || !pagesEl) return;
+
+      // Preserva la posición relativa del scroll a través del re-render
+      // (se dispara también cuando cambia el zoom, no solo al cargar un PDF
+      // nuevo): captura la proporción ANTES de tocar el DOM.
+      const scrollRatio = container.scrollHeight > 0
+        ? container.scrollTop / container.scrollHeight
+        : 0;
+
+      // limpia solo los canvas que este componente agregó, nunca los
+      // overlays de React (children) que pudieran compartir el contenedor.
+      canvasesRef.current.forEach((c) => c.remove());
+      canvasesRef.current = [];
+
+      // Escala: ancho del contenedor / página más ancha, multiplicado por
+      // el zoom del toolbar (1 si no hay toolbar).
+      const { pdfPages, maxWidth } = loadedDoc;
+      const scale = ((container.clientWidth || maxWidth) / maxWidth) * zoom;
+      const dpr = Math.max(1.5, window.devicePixelRatio || 1);
+
+      const rendered: PageInfo[] = [];
+      for (const [idx, page] of pdfPages.entries()) {
+        if (cancelled) return;
+        const numPage = idx + 1;
+        const viewport = page.getViewport({ scale: scale * dpr });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = `${viewport.width / dpr}px`;
+        canvas.style.height = `${viewport.height / dpr}px`;
+        canvas.style.marginBottom = `${PAGE_GAP}px`;
+        // Centra el canvas cuando es más angosto que el contenedor y
+        // permite que se desborde (scrolleable) cuando el zoom lo hace más
+        // ancho: con `.digid-pdf__pages` en `align-items: stretch`, un
+        // margen horizontal auto se resuelve a valores iguales cuando hay
+        // espacio libre (mismo resultado visual que `align-items: center`)
+        // y colapsa a 0 cuando el canvas desborda, permitiendo scroll.
+        canvas.style.marginInline = 'auto';
+        const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+        // eslint-disable-next-line no-await-in-loop
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        if (cancelled) return;
+        pagesEl.appendChild(canvas);
+        canvasesRef.current.push(canvas);
+        rendered.push({ numPage, width: viewport.width / dpr, height: viewport.height / dpr });
+      }
+
+      container.scrollTop = scrollRatio * container.scrollHeight;
+
+      setPages(rendered);
+      setCurrentPage((p) => Math.min(Math.max(1, p), rendered.length || 1));
+      onPagesRenderedRef.current?.(rendered);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadedDoc, zoom]);
 
   // Actualiza la página actual mientras el usuario hace scroll manualmente
   // (throttle vía requestAnimationFrame para no recalcular en cada evento).
@@ -269,13 +318,17 @@ export function PdfViewer({
             value={pageInput}
             min={1}
             max={numPages || 1}
+            onFocus={() => { pageInputFocusedRef.current = true; }}
             onChange={(e) => setPageInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') commitPageInput();
             }}
-            onBlur={commitPageInput}
+            onBlur={() => {
+              pageInputFocusedRef.current = false;
+              commitPageInput();
+            }}
           />
-          <span>{s.pdf.pageOf(currentPage, numPages)}</span>
+          <span>{s.pdf.pageOf(numPages)}</span>
           <button
             type="button"
             aria-label={s.pdf.nextPage}

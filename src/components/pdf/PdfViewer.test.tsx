@@ -127,6 +127,23 @@ describe('PdfViewer con toolbar', () => {
     expect(scrollSpy).toHaveBeenCalledWith({ top: page1Height + 1, behavior: 'smooth' });
   });
 
+  it('cachea el documento entre cambios de zoom: getDocument se llama una sola vez', async () => {
+    const { getDocument } = await import('pdfjs-dist');
+    const callsBefore = vi.mocked(getDocument).mock.calls.length;
+    const { container } = await renderPages();
+    const before = canvasWidth(container);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Acercar' }));
+    await waitFor(() => expect(screen.getByText('125%')).toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: 'Acercar' }));
+    await waitFor(() => expect(screen.getByText('150%')).toBeInTheDocument());
+
+    // El zoom re-renderiza los canvases (a partir de las páginas ya cargadas)...
+    await waitFor(() => expect(canvasWidth(container)).toBeCloseTo(before * 1.5, 0));
+    // ...pero NUNCA vuelve a pedir el documento completo.
+    expect(vi.mocked(getDocument).mock.calls.length - callsBefore).toBe(1);
+  });
+
   it('permite saltar a una página escribiendo el número y presionando Enter', async () => {
     const { container } = await renderPages();
     const scroller = container.querySelector('.digid-pdf') as HTMLElement;
