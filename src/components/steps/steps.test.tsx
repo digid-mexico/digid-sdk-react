@@ -77,9 +77,15 @@ describe('StartStep', () => {
     renderStep(<StartStep />, ctx);
     const btn = screen.getByRole('button', { name: es.start.continue });
     expect(btn).toBeDisabled();
-    await userEvent.click(screen.getByRole('checkbox'));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Aceptar/i }));
     await userEvent.click(btn);
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
+  });
+
+  it('el checkbox de términos tiene nombre accesible aunque el enlace esté fuera del label', () => {
+    const ctx = makeCtx();
+    renderStep(<StartStep />, ctx);
+    expect(screen.getByRole('checkbox', { name: es.start.accept })).toBeInTheDocument();
   });
 
   it('Salir sin firmar dispara EXIT', async () => {
@@ -158,6 +164,26 @@ describe('StartStep', () => {
       await userEvent.click(screen.getByRole('checkbox'));
       await userEvent.click(screen.getByRole('button', { name: es.rl.continue }));
       await vi.waitFor(() => expect(ctx.notify).toHaveBeenCalledWith('error', es.rl.wrongPassword));
+      expect(ctx.api.finishAutografa).not.toHaveBeenCalled();
+      expect(ctx.dispatch).not.toHaveBeenCalledWith({ type: 'GOTO', step: 'completed' });
+    });
+
+    it('error de red en validRepre: notifica el error genérico (no "contraseña incorrecta") y no continúa', async () => {
+      const { DigidError } = await import('../../types/api');
+      const ctx = ctxWithRepre({
+        api: {
+          fileUrl: (p: string) => p,
+          validRepre: vi.fn().mockRejectedValue(new DigidError('NETWORK', 'sin conexión')),
+          finishAutografa: vi.fn().mockResolvedValue({ Success: true }),
+          forgotPwdRl: vi.fn().mockResolvedValue({ Success: true }),
+        } as never,
+      });
+      renderStep(<StartStep />, ctx);
+      await userEvent.type(screen.getByPlaceholderText(es.rl.passwordPlaceholder), 'secreta123');
+      await userEvent.click(screen.getByRole('checkbox'));
+      await userEvent.click(screen.getByRole('button', { name: es.rl.continue }));
+      await vi.waitFor(() => expect(ctx.notify).toHaveBeenCalledWith('error', es.errors.generic));
+      expect(ctx.notify).not.toHaveBeenCalledWith('error', es.rl.wrongPassword);
       expect(ctx.api.finishAutografa).not.toHaveBeenCalled();
       expect(ctx.dispatch).not.toHaveBeenCalledWith({ type: 'GOTO', step: 'completed' });
     });

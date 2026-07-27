@@ -57,6 +57,7 @@
   min-height: 280px; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 16px; cursor: pointer; }
 .digid-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; gap: 12px; }
+.digid-footer--end { justify-content: flex-end; }
 
 /* --- Start step (revisión del documento) --- */
 .digid-start__header {

@@ -4,6 +4,7 @@ import { useStrings } from '../../i18n';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { PdfViewer } from '../pdf/PdfViewer';
+import { DigidError } from '../../types/api';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -48,9 +49,15 @@ export function StartStep() {
     setBusy(true);
     try {
       await api.validRepre(pwd);
-    } catch {
+    } catch (e) {
       // No se expone el Message crudo del backend: puede filtrar detalles internos.
-      notify('error', s.rl.wrongPassword);
+      // Excepción: un fallo de red no es "contraseña incorrecta" y no debe
+      // decirle eso al usuario (p.ej. si está sin conexión).
+      if (e instanceof DigidError && e.code === 'NETWORK') {
+        notify('error', s.errors.generic);
+      } else {
+        notify('error', s.rl.wrongPassword);
+      }
       setBusy(false);
       setSubmitting(false);
       return;
@@ -132,6 +139,7 @@ export function StartStep() {
                     className="digid-input"
                     type={showPwd ? 'text' : 'password'}
                     placeholder={s.rl.passwordPlaceholder}
+                    autoComplete="current-password"
                     value={pwd}
                     onChange={(e) => setPwd(e.target.value)}
                   />
@@ -175,6 +183,7 @@ export function StartStep() {
         <label className="digid-check">
           <input
             type="checkbox"
+            aria-label={s.start.accept}
             checked={accepted}
             onChange={(e) => setAccepted(e.target.checked)}
           />
@@ -184,7 +193,7 @@ export function StartStep() {
       </div>
 
       {repre != null ? (
-        <div className="digid-footer" style={{ justifyContent: 'flex-end' }}>
+        <div className="digid-footer digid-footer--end">
           <Button onClick={() => void continueRl()} disabled={pwd.length < 3 || !accepted || submitting}>
             {s.rl.continue}
           </Button>
