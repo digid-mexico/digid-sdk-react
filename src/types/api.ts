@@ -17,7 +17,7 @@ export interface StartAutografaData {
     verificacion_identificacion: number;
   };
   style: { logofirmas: string; btnbackground_color: string; btn_color: string } | null;
-  repre: { firma: string } | null;
+  repre: { id?: number; firma: string } | null;
   preferences: {
     required_gps: number;
     required_id_frontal?: number | null;

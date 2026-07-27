@@ -123,6 +123,52 @@ describe('ApiClient.getAsignado', () => {
   });
 });
 
+describe('ApiClient.validRepre', () => {
+  it('postea JSON con token y pwd', async () => {
+    server.use(
+      http.post(`${BASE}/api/archivofirma/valid_repre`, async ({ request }) => {
+        expect(request.headers.get('content-type')).toContain('application/json');
+        const body = await request.json();
+        expect(body).toEqual({ token: 'tok123', pwd: 'secreta' });
+        return HttpResponse.json({ Success: true, Data: '' });
+      }),
+    );
+    await expect(client.validRepre('secreta')).resolves.toMatchObject({ Success: true });
+  });
+
+  it('lanza DigidError cuando la contraseña es inválida (4xx)', async () => {
+    server.use(
+      http.post(`${BASE}/api/archivofirma/valid_repre`, () =>
+        HttpResponse.json({ Message: 'contraseña incorrecta' }, { status: 400 }),
+      ),
+    );
+    await expect(client.validRepre('mala')).rejects.toBeInstanceOf(DigidError);
+  });
+});
+
+describe('ApiClient.forgotPwdRl', () => {
+  it('postea JSON con email', async () => {
+    server.use(
+      http.post(`${BASE}/api/firmante/forgot_pwd_rl`, async ({ request }) => {
+        expect(request.headers.get('content-type')).toContain('application/json');
+        const body = await request.json();
+        expect(body).toEqual({ email: 'rl@example.com' });
+        return HttpResponse.json({ Success: true });
+      }),
+    );
+    await expect(client.forgotPwdRl('rl@example.com')).resolves.toMatchObject({ Success: true });
+  });
+
+  it('lanza DigidError en 4xx', async () => {
+    server.use(
+      http.post(`${BASE}/api/firmante/forgot_pwd_rl`, () =>
+        HttpResponse.json({ Message: 'correo inválido' }, { status: 400 }),
+      ),
+    );
+    await expect(client.forgotPwdRl('mal@correo')).rejects.toBeInstanceOf(DigidError);
+  });
+});
+
 describe('ApiClient.finishAutografa', () => {
   it('postea token, browser y gps', async () => {
     server.use(

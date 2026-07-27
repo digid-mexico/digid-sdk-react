@@ -67,6 +67,24 @@ export class ApiClient {
     return this.parse(res);
   }
 
+  async validRepre(pwd: string): Promise<{ Success: boolean }> {
+    const res = await this.request('/api/archivofirma/valid_repre', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: this.token, pwd }),
+    });
+    return this.parse(res);
+  }
+
+  async forgotPwdRl(email: string): Promise<{ Success: boolean }> {
+    const res = await this.request('/api/firmante/forgot_pwd_rl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return this.parse(res);
+  }
+
   async finishAutografa(gps: string | null): Promise<{ Success: boolean }> {
     const form = new FormData();
     form.append('token', this.token);
