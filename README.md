@@ -2,6 +2,10 @@
 
 SDK React para integrar el flujo de firma autógrafa de Digid en aplicaciones de terceros.
 
+> 📘 **¿Vas a integrar el SDK en tu proyecto?** Lee la
+> [Guía de integración para clientes](docs/GUIA-INTEGRACION.md) — requisitos, ejemplos
+> (Vite/Next.js), referencia de props, theming, permisos, CSP y solución de problemas.
+
 ## Instalación
 
     npm install @digid/firma-autografa-react
