@@ -1,6 +1,6 @@
 # Guía de integración — SDK de Firma Autógrafa de Digid
 
-`@digid/firma-autografa-react` · v0.2.0
+`@digid/firma-autografa-react` · v0.3.0
 
 Esta guía está dirigida a equipos de desarrollo que quieren integrar el proceso de
 **firma autógrafa de Digid** dentro de su propia aplicación web, sin redirigir a sus
@@ -32,6 +32,15 @@ el mismo proceso certificado que ofrece Digid:
 > `start_autografa` (rama `feat/sdk-preferences-flags` del backend de Digid); si tu
 > backend todavía no las envía, el SDK muestra las tres pantallas por default (opción
 > más segura).
+
+> **Firmantes Representante Legal.** Si el firmante está registrado en Digid como
+> Representante Legal con firma y contraseña ya guardadas, el paso 1 muestra en el
+> panel lateral su firma autógrafa y un campo de contraseña en vez del flujo normal:
+> tras aceptar términos y capturar la contraseña, un único botón "Continuar" valida
+> las credenciales contra Digid y, si son correctas, completa la firma de inmediato
+> — sin pasar por identificación, selfie ni colocación manual de firmas. Este caso no
+> requiere ninguna configuración adicional de tu parte: el SDK lo detecta a partir de
+> `Data.repre` en la respuesta de `start_autografa`.
 
 Todo el estado del proceso vive en memoria del navegador: el SDK no usa
 `localStorage` ni `sessionStorage`, no carga scripts de terceros en tiempo de
@@ -284,9 +293,12 @@ un ajuste más fino:
 ```
 
 Todas las clases del SDK usan el prefijo `digid-`, por lo que no colisionan con las
-de tu aplicación. El componente es responsive y ocupa el ancho de su contenedor:
-móntalo dentro de un contenedor con el ancho máximo que quieras (recomendado:
-`max-width` de 900–1100 px en escritorio).
+de tu aplicación. El componente (`.digid-root`) trae su propio `max-width: 900px` y
+se centra automáticamente (`margin-inline: auto`) dentro de su contenedor — pensado
+para verse bien tanto en columnas angostas como en pantallas ultrawide, sin que el
+visor de PDF quede desproporcionado. No necesitas limitar el ancho del contenedor que
+lo envuelve; si tu diseño requiere un ancho distinto, sobreescribe `max-width` en
+`.digid-root` desde tu propio CSS.
 
 ---
 
@@ -374,4 +386,4 @@ media-src   'self' blob:;               (previsualización de cámara)
 
 ---
 
-*Digid — plataforma de firma digital. Esta guía corresponde a la versión 0.2.0 del SDK.*
+*Digid — plataforma de firma digital. Esta guía corresponde a la versión 0.3.0 del SDK.*

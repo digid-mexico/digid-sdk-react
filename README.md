@@ -30,7 +30,10 @@ El flujo cubre: revisión del documento y aceptación de términos → captura d
 sobre el PDF → confirmación. Las pantallas de INE frontal/reverso y selfie son
 condicionales: se muestran u omiten según las preferencias del documento configuradas en
 Digid (`Data.preferences` de `start_autografa`); si el backend no envía esas preferencias
-(o las envía incompletas), el SDK muestra las tres pantallas por default.
+(o las envía incompletas), el SDK muestra las tres pantallas por default. Los firmantes
+Representante Legal (con firma y contraseña ya registradas en Digid) firman directo desde
+la pantalla de revisión, sin las pantallas de identificación/selfie. El contenedor raíz
+(`.digid-root`) trae `max-width: 900px` y se centra solo dentro de tu página.
 
 ### Props
 
@@ -55,8 +58,10 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
 - CORS: agregar el dominio del integrador al allowlist de `config/cors.php`
   (no usar `*` junto con `supports_credentials: true`).
 - Endpoints consumidos: `GET /api/archivofirma/start_autografa`, `GET /api/asignado/autografa`,
-  `POST /api/asignado/autografa/save_file`, `POST /api/archivofirma/finish_autografa`
-  y los recursos estáticos de `/storage/files`.
+  `POST /api/asignado/autografa/save_file`, `POST /api/archivofirma/finish_autografa`,
+  `POST /api/archivofirma/valid_repre` y `POST /api/firmante/forgot_pwd_rl` (estos dos
+  últimos solo aplican a firmantes Representante Legal), y los recursos estáticos de
+  `/storage/files`.
 
 ## Seguridad
 
@@ -70,7 +75,7 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
 ## Desarrollo
 
     npm install
-    npm test            # vitest (91 tests)
+    npm test            # vitest (103 tests)
     npm run typecheck
     npm run build       # tsup → dist/
     npm run dev         # playground en http://localhost:5199/?token=<token>
