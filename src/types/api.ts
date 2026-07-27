@@ -18,7 +18,12 @@ export interface StartAutografaData {
   };
   style: { logofirmas: string; btnbackground_color: string; btn_color: string } | null;
   repre: { firma: string } | null;
-  preferences: { required_gps: number } | null;
+  preferences: {
+    required_gps: number;
+    required_id_frontal?: number | null;
+    required_id_reverso?: number | null;
+    required_selfie?: number | null;
+  } | null;
   diff_documents: string | null;
 }
 
@@ -26,7 +31,7 @@ export interface AsignadoData {
   nombre: string;
   status: number;
   firma: { id: number } | null;
-  files: { idFront: string | null; idBack: string | null; sign: string | null };
+  files: { idFront: string | null; idBack: string | null; sign: string | null; selfie: string | null };
 }
 
 export interface SignatureCoordinate {
