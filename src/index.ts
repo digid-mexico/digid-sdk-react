@@ -20,6 +20,8 @@ export { PdfViewer } from './components/pdf/PdfViewer';
 export { SignaturePad } from './components/signature/SignaturePad';
 export { GuidedCameraCapture, type DetectorKind } from './components/camera/GuidedCameraCapture';
 export type { GuideKind } from './components/camera/guideRect';
+export { DocScanCapture, type DocScanCaptureProps } from './components/scan/DocScanCapture';
+export { ScanInstruction } from './components/scan/ScanInstruction';
 
 // Infraestructura de detección on-device para captura guiada (Task 21 la
 // consume desde las UIs de INE/selfie).
@@ -34,9 +36,10 @@ export { useAutoCapture } from './detection/useAutoCapture';
 export type { AutoCaptureStatus, AutoCaptureOptions, AutoCaptureState } from './detection/useAutoCapture';
 
 // Núcleo de escaneo OpenCV portado del prototipo KYC (Task 22): worker client,
-// veredicto de calidad, guía de encuadre y geometría del marco guiado. La UI
-// de captura (steps/GuidedCameraCapture) todavía NO lo consume — queda para
-// el siguiente task.
+// veredicto de calidad, guía de encuadre y geometría del marco guiado. Task 23
+// lo conecta a la UI de INE (components/scan/DocScanCapture, usado por
+// IdCaptureStep); estos exports quedan además disponibles para quien quiera
+// construir su propia UI de captura sobre el mismo núcleo.
 export {
   initDocScan, docScanReady, detectDocument, detectDocumentStill, assessDocQuality, extractDocument,
   qualityVerdict, isWashOnlyReject, extremeBlur, frameGuidance, createDetectionConfirmer,

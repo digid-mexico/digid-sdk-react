@@ -3,15 +3,21 @@ import { useFlow } from '../../core/FlowContext';
 import { useStrings } from '../../i18n';
 import { Button } from '../ui/Button';
 import { Stepper } from '../ui/Stepper';
-import { GuidedCameraCapture } from '../camera/GuidedCameraCapture';
+import { ScanInstruction } from '../scan/ScanInstruction';
+import { DocScanCapture } from '../scan/DocScanCapture';
 import { validateImageFile, normalizeToJpeg } from '../../utils/image';
-import { isMobileDevice } from '../../utils/device';
 
 type Source =
   | { kind: 'none' }
   | { kind: 'existing'; base64: string }   // ya guardado en backend
   | { kind: 'file'; file: File; previewUrl: string }
   | { kind: 'camera'; dataUrl: string };
+
+// 'instruction': pantalla previa (Task 23) con recomendaciones + alternativa
+// de subir archivo; 'camera': escáner de marco guiado (DocScanCapture,
+// full-bleed); 'preview': imagen ya lista (existente, subida o escaneada) con
+// el resumen del paso y el footer Regresar/Continuar del SDK.
+type View = 'instruction' | 'camera' | 'preview';
 
 export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
   const s = useStrings();
@@ -21,7 +27,9 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
   const [source, setSource] = useState<Source>(
     existing ? { kind: 'existing', base64: existing } : { kind: 'none' },
   );
-  const [cameraOpen, setCameraOpen] = useState(!existing && isMobileDevice());
+  // Fast path: si el backend ya tiene el archivo, se salta la instrucción y
+  // se va directo a la vista de resumen (igual que antes de Task 23).
+  const [view, setView] = useState<View>(existing ? 'preview' : 'instruction');
   const [submitting, setSubmitting] = useState(false);
   // rastrea el object URL vigente (si lo hay) para poder revocarlo cuando se
   // reemplaza o descarta la selección, y también al desmontar.
@@ -43,6 +51,7 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
       const previewUrl = URL.createObjectURL(file);
       objectUrlRef.current = previewUrl;
       setSource({ kind: 'file', file, previewUrl });
+      setView('preview');
     } catch (e) {
       notify('error', e instanceof Error ? e.message : s.errors.generic);
     }
@@ -93,44 +102,30 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
     : source.kind === 'camera' ? source.dataUrl
     : null;
 
+  // El escáner ocupa toda la sección (full-bleed, chrome navy propio con su
+  // botón de cerrar): sin encabezado/Stepper del SDK alrededor mientras está
+  // activo, igual que ocurría con GuidedCameraCapture antes de Task 23.
+  if (view === 'camera') {
+    return (
+      <DocScanCapture
+        side={side}
+        onCancel={() => setView('instruction')}
+        onCapture={(dataUrl) => {
+          revokeCurrentObjectUrl();
+          setSource({ kind: 'camera', dataUrl });
+          setView('preview');
+          notify('success', s.idCapture.captured);
+        }}
+      />
+    );
+  }
+
   return (
     <section aria-label={side === 'front' ? s.idCapture.frontTitle : s.idCapture.backTitle}>
-      <h1>{side === 'front' ? s.idCapture.frontTitle : s.idCapture.backTitle}</h1>
       <Stepper steps={s.steps} active={0} />
-      <p>{side === 'front' ? s.idCapture.frontHint : s.idCapture.backHint}</p>
-      <p>{s.idCapture.legible}</p>
 
-      {cameraOpen ? (
-        <GuidedCameraCapture
-          guide="id"
-          detector={side === 'front' ? 'face-small' : 'barcode'}
-          mirror={!isMobileDevice()}
-          onCancel={() => setCameraOpen(false)}
-          onCapture={(dataUrl) => {
-            setSource({ kind: 'camera', dataUrl });
-            setCameraOpen(false);
-            notify('success', s.idCapture.captured);
-          }}
-        />
-      ) : previewSrc ? (
-        <div>
-          <img src={previewSrc} alt={`Identificación ${side === 'front' ? 'frontal' : 'reverso'}`} />
-          <Button variant="secondary" aria-label="Cambiar foto"
-            onClick={() => {
-              revokeCurrentObjectUrl();
-              setSource({ kind: 'none' });
-              if (isMobileDevice()) setCameraOpen(true);
-            }}>
-            ✕
-          </Button>
-        </div>
-      ) : (
+      {view === 'instruction' ? (
         <div
-          className="digid-upload"
-          role="button"
-          tabIndex={0}
-          onClick={() => inputRef.current?.click()}
-          onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
@@ -138,13 +133,46 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
             if (f) void pickFile(f);
           }}
         >
-          <p>{s.idCapture.dropHere}</p>
-          <p>{s.idCapture.formats}</p>
-          <button type="button" onClick={(e) => { e.stopPropagation(); setCameraOpen(true); }}>
-            {s.idCapture.openCamera}
-          </button>
+          <ScanInstruction
+            side={side}
+            onStart={() => setView('camera')}
+            onBack={() => dispatch({ type: 'BACK' })}
+            onUploadClick={() => inputRef.current?.click()}
+          />
         </div>
+      ) : (
+        <>
+          <h1>{side === 'front' ? s.idCapture.frontTitle : s.idCapture.backTitle}</h1>
+          <p>{side === 'front' ? s.idCapture.frontHint : s.idCapture.backHint}</p>
+          <p>{s.idCapture.legible}</p>
+
+          {previewSrc && (
+            <div>
+              <img src={previewSrc} alt={`Identificación ${side === 'front' ? 'frontal' : 'reverso'}`} />
+              <Button variant="secondary" aria-label="Cambiar foto"
+                onClick={() => {
+                  revokeCurrentObjectUrl();
+                  setSource({ kind: 'none' });
+                  setView('instruction');
+                }}>
+                ✕
+              </Button>
+            </div>
+          )}
+
+          <p>{s.idCapture.signatory}: {asignado?.nombre}</p>
+
+          <div className="digid-footer">
+            <Button variant="secondary" onClick={() => dispatch({ type: 'BACK' })}>
+              {s.idCapture.back}
+            </Button>
+            <Button disabled={source.kind === 'none' || submitting} onClick={() => void submit()}>
+              {s.idCapture.continue}
+            </Button>
+          </div>
+        </>
       )}
+
       <input
         ref={inputRef}
         data-testid="digid-file-input"
@@ -153,17 +181,6 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
         hidden
         onChange={(e) => { const f = e.target.files?.[0]; if (f) void pickFile(f); e.target.value = ''; }}
       />
-
-      <p>{s.idCapture.signatory}: {asignado?.nombre}</p>
-
-      <div className="digid-footer">
-        <Button variant="secondary" onClick={() => dispatch({ type: 'BACK' })}>
-          {s.idCapture.back}
-        </Button>
-        <Button disabled={source.kind === 'none' || submitting} onClick={() => void submit()}>
-          {s.idCapture.continue}
-        </Button>
-      </div>
     </section>
   );
 }

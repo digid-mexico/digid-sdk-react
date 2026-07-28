@@ -28,6 +28,21 @@ vi.mock('../camera/GuidedCameraCapture', () => ({
   ),
 }));
 
+vi.mock('../scan/DocScanCapture', () => ({
+  // El escáner de INE (Task 23) también se mockea: sin cámara/worker real,
+  // solo se espía con qué `side` se monta y se simulan sus callbacks.
+  DocScanCapture: (props: { side: string; onCancel?: () => void; onCapture?: (dataUrl: string) => void }) => (
+    <div data-testid="doc-scan-mock" data-side={props.side}>
+      <button type="button" onClick={props.onCancel}>
+        cerrar escáner mock
+      </button>
+      <button type="button" onClick={() => props.onCapture?.('data:image/jpeg;base64,scanned')}>
+        confirmar escaneo mock
+      </button>
+    </div>
+  ),
+}));
+
 vi.mock('../pdf/PdfViewer', () => ({
   // Invoca onPagesRendered una sola vez al montar (como el componente real,
   // que lo hace desde un efecto tras cargar el PDF). Llamarlo directo en el
@@ -314,22 +329,48 @@ describe('IdCaptureStep', () => {
     expect(ctx.dispatch).toHaveBeenCalledTimes(1);
   });
 
-  it('el frente monta GuidedCameraCapture con guide="id" y detector="face-small"', async () => {
+  it('muestra la instrucción antes de la cámara y monta DocScanCapture con side="front" al iniciar', async () => {
     const ctx = makeCtx();
     renderStep(<IdCaptureStep side="front" />, ctx);
-    await userEvent.click(screen.getByRole('button', { name: es.idCapture.openCamera }));
-    const mock = screen.getByTestId('guided-camera-mock');
-    expect(mock).toHaveAttribute('data-guide', 'id');
-    expect(mock).toHaveAttribute('data-detector', 'face-small');
+    // Pantalla de instrucción primero (Task 23): sin checkbox de términos
+    // (ya se gatean en StartStep) y con el botón "Iniciar captura".
+    expect(screen.getByRole('heading', { name: es.scanUi.instruction.frontTitle })).toBeInTheDocument();
+    expect(screen.queryByTestId('doc-scan-mock')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.instruction.start }));
+    expect(screen.getByTestId('doc-scan-mock')).toHaveAttribute('data-side', 'front');
   });
 
-  it('el reverso monta GuidedCameraCapture con guide="id" y detector="barcode"', async () => {
+  it('el reverso monta DocScanCapture con side="back" al iniciar desde la instrucción', async () => {
     const ctx = makeCtx();
     renderStep(<IdCaptureStep side="back" />, ctx);
-    await userEvent.click(screen.getByRole('button', { name: es.idCapture.openCamera }));
-    const mock = screen.getByTestId('guided-camera-mock');
-    expect(mock).toHaveAttribute('data-guide', 'id');
-    expect(mock).toHaveAttribute('data-detector', 'barcode');
+    expect(screen.getByRole('heading', { name: es.scanUi.instruction.backTitle })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.instruction.start }));
+    expect(screen.getByTestId('doc-scan-mock')).toHaveAttribute('data-side', 'back');
+  });
+
+  it('cancelar el escáner regresa a la instrucción', async () => {
+    const ctx = makeCtx();
+    renderStep(<IdCaptureStep side="front" />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.instruction.start }));
+    await userEvent.click(screen.getByRole('button', { name: 'cerrar escáner mock' }));
+    expect(screen.getByRole('heading', { name: es.scanUi.instruction.frontTitle })).toBeInTheDocument();
+  });
+
+  it('confirmar la captura del escáner muestra el resumen y permite continuar', async () => {
+    const ctx = makeCtx();
+    renderStep(<IdCaptureStep side="front" />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.instruction.start }));
+    await userEvent.click(screen.getByRole('button', { name: 'confirmar escaneo mock' }));
+    expect(screen.getByAltText(/identificación/i)).toHaveAttribute(
+      'src', expect.stringContaining('data:image/jpeg;base64,scanned'),
+    );
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+    await vi.waitFor(() =>
+      expect(ctx.api.saveFile).toHaveBeenCalledWith(
+        expect.objectContaining({ step: 'ine_frente', webCameraDataUrl: 'data:image/jpeg;base64,scanned' }),
+      ),
+    );
+    expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
   });
 });
 

@@ -91,14 +91,15 @@ describe('FirmaAutografa — flujo completo', () => {
     await userEvent.click(screen.getByRole('checkbox'));
     await userEvent.click(screen.getByRole('button', { name: es.start.continue }));
 
-    // Paso 2: INE frontal (upload)
-    await screen.findByText(es.idCapture.frontTitle);
+    // Paso 2: INE frontal — pantalla de instrucción (Task 23), con la
+    // alternativa de subir archivo siempre disponible sin pasar por la cámara.
+    await screen.findByText(es.scanUi.instruction.frontTitle);
     const jpeg = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'i.jpg', { type: 'image/jpeg' });
     await userEvent.upload(screen.getByTestId('digid-file-input'), jpeg);
     await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
 
     // Paso 3: INE reverso
-    await screen.findByText(es.idCapture.backTitle);
+    await screen.findByText(es.scanUi.instruction.backTitle);
     await userEvent.upload(screen.getByTestId('digid-file-input'), jpeg);
     await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
 
