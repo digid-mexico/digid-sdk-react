@@ -1,6 +1,6 @@
 # Guía de integración — SDK de Firma Autógrafa de Digid
 
-`@digid/firma-autografa-react` · v0.6.0
+`@digid/firma-autografa-react` · v0.7.0
 
 Esta guía está dirigida a equipos de desarrollo que quieren integrar el proceso de
 **firma autógrafa de Digid** dentro de su propia aplicación web, sin redirigir a sus
@@ -17,8 +17,8 @@ el mismo proceso certificado que ofrece Digid:
 | Paso | Pantalla | Descripción |
 |---|---|---|
 | 1 | **Revisión del documento** | El firmante ve el PDF a firmar, puede descargarlo y acepta términos y condiciones. Si el documento requiere verificación de identidad, se muestra el aviso de consentimiento KYC. El visor incluye controles de zoom (50%–300%) y navegación rápida entre páginas. |
-| 2 | **Identificación (frente)** | La cámara del dispositivo se abre con un marco guía (proporción de una credencial) superpuesto: en cuanto el SDK detecta —en el propio dispositivo— la fotografía de la identificación bien encuadrada y nítida dentro del marco, cuenta regresiva y captura sola. También se puede capturar manualmente en cualquier momento con el botón de la cámara, o subir un archivo JPEG/PNG. |
-| 3 | **Identificación (reverso)** | Mismo marco guía; en este paso el SDK busca el código (QR/PDF417) del reverso para disparar la captura automática. Igual que en el paso anterior, la captura manual y la carga de archivo siempre están disponibles. |
+| 2 | **Identificación (frente)** | El firmante ve primero una pantalla de instrucción con recomendaciones de captura y, al continuar, la cámara se abre con un marco guía ID-1 superpuesto: en cuanto el SDK detecta —en el propio dispositivo, vía OpenCV— la credencial bien alineada dentro del marco y nítida, **recorta automáticamente el documento** (contorno + corrección de perspectiva) y muestra un preview con el recorte antes de continuar. También se puede capturar manualmente en cualquier momento con el botón de la cámara (recorta el marco tal cual, sin gate de calidad) o subir un archivo/foto de galería. |
+| 3 | **Identificación (reverso)** | Mismo flujo de instrucción + marco guiado + recorte automático que el paso anterior. |
 | 4 | **Selfie** | La cámara frontal se abre con un óvalo guía; el SDK detecta el rostro del firmante centrado y a buen tamaño dentro del óvalo para capturar automáticamente, con las mismas alternativas de captura manual o carga de archivo. |
 | 5 | **Creación de la firma** | El firmante dibuja su firma autógrafa en un lienzo táctil (funciona con dedo, stylus o mouse). |
 | 6 | **Colocación de firmas** | El firmante confirma una por una las posiciones de su firma sobre el documento, viéndolas superpuestas en el PDF real. La previsualización muestra la posición y el tamaño exactos con los que quedará estampada en el documento final (37×24mm físicos). |
@@ -44,9 +44,11 @@ el mismo proceso certificado que ofrece Digid:
 
 Todo el estado del proceso vive en memoria del navegador: el SDK no usa
 `localStorage` ni `sessionStorage`, y apaga la cámara en cuanto termina de usarla.
-La única carga de recursos externos en tiempo de ejecución es la de los modelos de
-detección on-device usados para la captura automática (ver [sección 1.2](#12-captura-automática));
-el SDK en sí no carga scripts de analítica, publicidad ni de ningún otro tipo.
+La única carga de recursos externos en tiempo de ejecución es la de los modelos/worker
+de detección on-device usados para la captura automática (ver
+[sección 1.2](#12-captura-automática-selfie) para la selfie y
+[sección 1.3](#13-escaneo-de-documentos-ine) para la INE); el SDK en sí no carga
+scripts de analítica, publicidad ni de ningún otro tipo.
 
 ### 1.1 Limitaciones
 
@@ -55,27 +57,31 @@ del proveedor de KYC alojado (liveness) **no están soportados todavía** por es
 ese flujo sigue disponible únicamente en la aplicación web legacy de Digid. Soporte
 para este caso está planeado para una versión futura del SDK.
 
-### 1.2 Captura automática
+### 1.2 Captura automática (selfie)
 
-En los pasos de identificación y selfie, el SDK intenta **detectar automáticamente**
-cuándo el documento o el rostro del firmante están bien encuadrados y nítidos dentro
-del marco guía, y dispara la captura sin que el firmante tenga que presionar ningún
-botón (tras una breve cuenta regresiva, para darle tiempo de reaccionar). Esta
-detección corre **enteramente en el dispositivo del firmante**: los frames de video
-analizados nunca salen del navegador ni se envían a Digid ni a ningún tercero; solo
-la imagen final ya capturada (igual que en el resto del flujo) se sube al backend.
+En el paso de selfie, el SDK intenta **detectar automáticamente** cuándo el rostro del
+firmante está bien encuadrado y nítido dentro del óvalo guía, y dispara la captura sin
+que el firmante tenga que presionar ningún botón (tras una breve cuenta regresiva, para
+darle tiempo de reaccionar). Esta detección corre **enteramente en el dispositivo del
+firmante**: los frames de video analizados nunca salen del navegador ni se envían a
+Digid ni a ningún tercero; solo la imagen final ya capturada (igual que en el resto del
+flujo) se sube al backend.
 
-Para lograr esto, el SDK carga de forma perezosa (solo cuando el firmante llega a un
-paso con cámara) dos modelos de detección de código abierto:
+> **Los pasos de identificación (INE frente/reverso) usan un mecanismo distinto** —el
+> escáner de documentos con OpenCV de la [sección 1.3](#13-escaneo-de-documentos-ine)—,
+> no lo descrito en esta sección. Antes de esta versión, el reverso de la INE usaba
+> lectura de código QR/PDF417 para su captura automática; el campo
+> `detectionAssets.zxingWasmUrl` sigue existiendo en el tipo por compatibilidad, pero
+> ya no lo consume ningún paso (reservado por si un futuro paso vuelve a necesitarlo).
 
-- Detección de rostro ([MediaPipe Tasks Vision](https://developers.google.com/mediapipe)), usada en el frente de la INE y en la selfie.
-- Lectura de código QR/PDF417 ([zxing-wasm](https://github.com/Sec-ant/zxing-wasm)), usada en el reverso de la INE.
+Para lograr esto, el SDK carga de forma perezosa (solo cuando el firmante llega al paso
+de selfie) un modelo de detección de rostro de código abierto:
+[MediaPipe Tasks Vision](https://developers.google.com/mediapipe).
 
-Ambos se apoyan en WebAssembly y pesan, entre los dos, **aproximadamente 4.5 MB**
-adicionales que se descargan la primera vez que el firmante abre la cámara (no al
-cargar el bundle del SDK). Por default se sirven desde CDNs públicos
-(`cdn.jsdelivr.net` para el WASM de MediaPipe, `storage.googleapis.com` para su
-modelo de rostro, y jsDelivr también para `zxing-wasm`).
+Se apoya en WebAssembly y pesa **aproximadamente 3 MB** adicionales que se descargan la
+primera vez que el firmante abre la cámara de la selfie (no al cargar el bundle del
+SDK). Por default se sirve desde CDNs públicos (`cdn.jsdelivr.net` para el WASM,
+`storage.googleapis.com` para el modelo de rostro).
 
 Si tu política de seguridad no permite depender de CDNs de terceros, puedes
 autoalojar estos archivos y apuntar el SDK a tus propias URLs con la prop
@@ -103,27 +109,28 @@ modelos, etc.), el SDK lo detecta y muestra un aviso indicándolo, pero el firma
 siempre puede capturar manualmente con el botón de la cámara — el flujo de firma
 nunca se bloquea por esto.
 
-### 1.3 Escaneo de documentos (assets)
+### 1.3 Escaneo de documentos (INE)
 
-> **Infraestructura interna, aún no activa en ningún paso de la UI.** Esta sección
-> documenta un núcleo de escaneo/recorte de documentos basado en OpenCV que el SDK
-> empaqueta como preparación para un rediseño futuro de la captura de INE (contorno,
-> recorte de perspectiva y métricas de nitidez/exposición más precisas que la
-> detección actual). Hoy los pasos de identificación siguen funcionando exactamente
-> igual que en la [sección 1.2](#12-captura-automática) (MediaPipe/zxing); nada de lo
-> descrito aquí cambia su comportamiento todavía.
+Los pasos de identificación (INE frente y reverso) usan un escáner de documentos con
+OpenCV: el firmante alinea la credencial a un marco guía ID-1 y, en cuanto el SDK
+detecta el contorno bien encuadrado y nítido, recorta el documento con corrección de
+perspectiva (contorno + esquinas + warp) — todo **en el propio dispositivo**, sin
+enviar frames de video a Digid ni a ningún tercero. El firmante ve un preview del
+recorte (con un puntaje de calidad orientativo, que nunca bloquea continuar) antes de
+confirmar. La captura manual con el botón de la cámara y la carga de archivo/foto de
+galería siempre están disponibles como alternativa.
 
 El paquete incluye, bajo `scan-assets/`, un Web Worker (`scan-worker.js`) y el build
 WebAssembly de OpenCV que ese worker carga (`opencv.js`, ~9 MB). El worker corre en
 un hilo aparte porque compilar/ejecutar ese WASM en el hilo principal congelaría la
 UI; `opencv.js` solo se descarga de forma perezosa **dentro del worker**, y solo
-cuando el firmante llegue a una pantalla que lo use — nunca al cargar el bundle del
+cuando el firmante llegue al paso de identificación — nunca al cargar el bundle del
 SDK.
 
-Cuando este núcleo se active (próxima versión), necesitarás servir esos dos archivos
-en tu propio origen. Los Web Workers no pueden cargarse desde un CDN cross-origin
-(a diferencia de MediaPipe/zxing), así que copia la carpeta completa a tu directorio
-de estáticos:
+**Servir `scan-assets/` es necesario para que el escáner funcione.** Los Web Workers
+no pueden cargarse desde un CDN cross-origin (a diferencia de MediaPipe/zxing en la
+[sección 1.2](#12-captura-automática-selfie)), así que copia la carpeta completa a tu
+directorio de estáticos:
 
 ```bash
 cp -R node_modules/@digid/firma-autografa-react/scan-assets public/digid-scan
@@ -143,6 +150,13 @@ sirve estáticos desde otra ruta, pásasela vía la prop `scanAssets`:
 `scan-worker.js` carga `opencv.js` con una ruta relativa a su propia URL
 (`./opencv.js`), así que basta con que ambos archivos queden en la misma carpeta —
 no hace falta configurar la URL de `opencv.js` por separado.
+
+**Si no sirves `scan-assets/`** (lo olvidaste, tu CSP lo bloquea, o el navegador no
+soporta el worker/WASM), el SDK lo detecta —espera unos segundos a que el worker
+quede listo— y se degrada automáticamente a captura manual: el marco guía sigue
+visible y el firmante puede seguir capturando con el botón o subiendo un archivo; solo
+se pierden el recorte automático y la detección en vivo. El flujo de firma nunca se
+bloquea por esto.
 
 ---
 
@@ -290,8 +304,8 @@ export function Firmador({ token }: { token: string }) {
 | `baseUrl` | `string` | — | `''` (mismo origen) | Origen del backend de Digid, `https://digidmexico.com.mx` (producción) o `https://pruebas.digidmexico.com.mx` (pruebas). Si tu app corre en un dominio distinto, es obligatorio y tu dominio debe estar habilitado en CORS. |
 | `theme` | `DigidTheme` | — | — | Colores de tu marca (ver [sección 8](#8-personalización-visual)). Los estilos que tu cuenta tenga configurados en Digid tienen prioridad sobre esta prop. |
 | `termsUrl` | `string` | — | T&C de Digid | URL de los términos y condiciones que se enlazan en el paso 1. |
-| `detectionAssets` | `DetectionAssets` | — | CDNs públicos | URLs propias para autoalojar los modelos de detección de la captura automática (ver [sección 1.2](#12-captura-automática)). |
-| `scanAssets` | `ScanAssets` | — | `/digid-scan/scan-worker.js` | URL propia del worker de escaneo OpenCV (ver [sección 1.3](#13-escaneo-de-documentos-assets)). Infraestructura interna todavía sin consumir desde ningún paso de la UI. |
+| `detectionAssets` | `DetectionAssets` | — | CDNs públicos | URLs propias para autoalojar el modelo de detección de rostro de la selfie (ver [sección 1.2](#12-captura-automática-selfie)). `zxingWasmUrl` ya no se usa (ver nota en esa sección). |
+| `scanAssets` | `ScanAssets` | — | `/digid-scan/scan-worker.js` | URL propia del worker de escaneo OpenCV que usan los pasos de INE frente/reverso (ver [sección 1.3](#13-escaneo-de-documentos-ine)). Requiere servir `scan-assets/` en tu propio origen. |
 | `onComplete` | `() => void` | — | — | El firmante completó todo el proceso; el documento quedó firmado. |
 | `onExit` | `(reason: string) => void` | — | — | El proceso terminó sin firmar. Ver razones abajo. |
 | `onError` | `(error: Error) => void` | — | — | Error irrecuperable (token inválido, fallo de red, respuesta inesperada). |
@@ -440,25 +454,34 @@ Asegúrate de permitir:
 ```
 connect-src https://digidmexico.com.mx;   (o pruebas.digidmexico.com.mx según el ambiente)
 img-src     'self' data: blob: https://digidmexico.com.mx;
-worker-src  'self' blob:;               (worker de pdf.js)
+worker-src  'self' blob:;               (worker de pdf.js Y del escáner de INE, sección 1.3)
 media-src   'self' blob:;               (previsualización de cámara)
 ```
 
-**Si usas la captura automática con sus proveedores por default** (ver
-[sección 1.2](#12-captura-automática)), agrega además los orígenes de los modelos
-de detección y `'wasm-unsafe-eval'` (requerido por los navegadores para instanciar
-WebAssembly compilado dinámicamente, como el de MediaPipe/zxing-wasm):
+**Escáner de INE (sección 1.3, `scan-assets/`):** al servirse desde tu propio origen,
+solo necesitas `worker-src 'self'` (ya arriba) y `'wasm-unsafe-eval'` en `script-src`
+para tu propio origen (requerido por los navegadores para instanciar el WebAssembly de
+OpenCV que el worker carga):
 
 ```
-script-src  'wasm-unsafe-eval' https://cdn.jsdelivr.net https://storage.googleapis.com;
+script-src  'wasm-unsafe-eval' 'self';
+```
+
+**Si además usas la captura automática de la selfie con su proveedor por default**
+(ver [sección 1.2](#12-captura-automática-selfie)), agrega también el origen del
+modelo de MediaPipe:
+
+```
+script-src  'wasm-unsafe-eval' https://cdn.jsdelivr.net;
 connect-src https://cdn.jsdelivr.net https://storage.googleapis.com;  (además de lo anterior)
 ```
 
-Si en cambio autoalojas los assets vía `detectionAssets`, sustituye esos dos
-orígenes por el(los) tuyo(s) propio(s) — no necesitas permitir jsDelivr/Google
-Storage en absoluto. Y si tu CSP no puede modificarse para permitir ninguno de los
-dos, no pasa nada: al no poder cargar los modelos, el SDK cae automáticamente a
-captura manual (ver sección 1.2) sin romper el resto del flujo.
+Si en cambio autoalojas ese modelo vía `detectionAssets`, sustituye esos dos orígenes
+por el(los) tuyo(s) propio(s) — no necesitas permitir jsDelivr/Google Storage en
+absoluto. Y si tu CSP no puede modificarse para permitir ninguno de los dos, no pasa
+nada: al no poder cargar el modelo, la selfie cae automáticamente a captura manual (ver
+sección 1.2) sin romper el resto del flujo — igual que el escáner de INE si
+`scan-assets/` no está disponible (ver sección 1.3).
 
 ---
 
@@ -483,6 +506,7 @@ captura manual (ver sección 1.2) sin romper el resto del flujo.
 - [ ] Manejo implementado de los tres callbacks (`onComplete`, `onExit`, `onError`) con navegación/pantallas propias.
 - [ ] Prueba completa en un móvil real: cámara trasera para INE, firma con el dedo.
 - [ ] Prueba del caso "enlace ya utilizado" (volver a abrir un token ya firmado).
+- [ ] `scan-assets/` copiada a tu directorio de estáticos y accesible en la URL configurada (ver [sección 1.3](#13-escaneo-de-documentos-ine)); sin esto, la INE funciona pero sin recorte automático.
 - [ ] CSP verificada si tu aplicación la define.
 - [ ] El token nunca aparece en logs del cliente ni en URLs compartibles innecesariamente.
 

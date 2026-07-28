@@ -37,18 +37,26 @@ la pantalla de revisión, sin las pantallas de identificación/selfie. El conten
 revisión, el visor de PDF incluye controles de zoom (50%–300%) y navegación rápida entre
 páginas.
 
-En los pasos de INE y selfie, la cámara muestra un marco guía y captura automáticamente en
-cuanto detecta —en el propio dispositivo, sin enviar nada a ningún servidor— el documento o
-rostro bien encuadrado y nítido; la captura manual con archivo o botón siempre está
-disponible como alternativa. Ver la [guía de integración](docs/GUIA-INTEGRACION.md#12-captura-automática)
-para el detalle de assets, `detectionAssets` y CSP.
+En los pasos de INE frente/reverso, el firmante ve primero una pantalla de instrucción y
+luego la cámara con un marco guía ID-1: el SDK detecta y **recorta automáticamente** el
+documento (contorno + corrección de perspectiva vía OpenCV, en el propio dispositivo, sin
+enviar nada a ningún servidor) en cuanto queda bien alineado dentro del marco y nítido, y
+muestra un preview con el recorte antes de continuar. En el paso de selfie, la cámara
+frontal detecta el rostro (MediaPipe) para su propia captura automática. La captura manual
+con el botón o la carga de una foto desde archivo/galería siempre están disponibles como
+alternativa en los tres pasos. Ver la
+[guía de integración](docs/GUIA-INTEGRACION.md#12-captura-automática) para el detalle de
+`detectionAssets` (selfie) y la [sección 1.3](docs/GUIA-INTEGRACION.md#13-escaneo-de-documentos-ine)
+para `scanAssets` (INE) y CSP.
 
-El paquete también incluye, como infraestructura interna aún sin activar en la UI, un
-núcleo de escaneo/recorte de documentos con OpenCV (`scan-assets/`, ver la
-[guía de integración](docs/GUIA-INTEGRACION.md#13-escaneo-de-documentos-assets)): a
-diferencia de los modelos de la sección anterior, el Web Worker que lo usa exige
-mismo origen (no puede cargarse desde un CDN), así que cuando se active deberás copiar
-esa carpeta a tu directorio de estáticos.
+El paquete incluye, bajo `scan-assets/`, el núcleo de escaneo/recorte de documentos con
+OpenCV que usan los pasos de INE (ver la
+[guía de integración](docs/GUIA-INTEGRACION.md#13-escaneo-de-documentos-ine)): a diferencia
+de los modelos de detección de la sección anterior, el Web Worker que lo usa exige mismo
+origen (no puede cargarse desde un CDN), así que **debes copiar esa carpeta a tu directorio
+de estáticos** para que el escáner funcione — si no la sirves, el SDK se degrada
+automáticamente a captura manual con el marco guía (sin recorte ni detección automática),
+sin romper el flujo.
 
 ### Props
 
@@ -58,11 +66,18 @@ esa carpeta a tu directorio de estáticos.
 | baseUrl | string | Origen del backend Digid (default: mismo origen) |
 | theme | DigidTheme | Colores opcionales; los estilos del cliente configurados en Digid tienen prioridad |
 | termsUrl | string | URL de términos y condiciones |
-| detectionAssets | DetectionAssets | URLs propias para autoalojar los modelos de detección de la captura automática (default: CDNs públicos) |
-| scanAssets | ScanAssets | URL propia del worker de escaneo OpenCV (default: `/digid-scan/scan-worker.js`); infraestructura interna, aún sin consumir desde la UI |
+| detectionAssets | DetectionAssets | URLs propias para autoalojar los modelos de detección de la captura automática (default: CDNs públicos); solo usados por la selfie — ver nota abajo sobre `zxingWasmUrl` |
+| scanAssets | ScanAssets | URL propia del worker de escaneo OpenCV (default: `/digid-scan/scan-worker.js`), usado por los pasos de INE frente/reverso para el recorte automático del documento; requiere servir `scan-assets/` en tu propio origen (ver sección 1.3 de la guía) |
 | onComplete | () => void | Proceso terminado con éxito |
 | onExit | (reason: string) => void | El firmante salió sin completar |
 | onError | (error: Error) => void | Error irrecuperable (token inválido, red) |
+
+> **Nota sobre `detectionAssets.zxingWasmUrl`.** Antes de esta versión, el reverso de la
+> INE usaba lectura de código QR/PDF417 (zxing-wasm) para la captura automática. Ahora ese
+> paso usa el escáner de documentos con OpenCV (marco guiado + recorte de perspectiva, ver
+> sección 1.3 de la guía), así que `zxingWasmUrl` queda sin uso — se mantiene en el tipo
+> `DetectionAssets` por compatibilidad, reservado por si un futuro paso vuelve a
+> necesitarlo.
 
 ### Visor PDF en consumidores CommonJS
 
