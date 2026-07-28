@@ -1,6 +1,6 @@
 # Guía de integración — SDK de Firma Autógrafa de Digid
 
-`@digid/firma-autografa-react` · v0.8.0
+`@digid/firma-autografa-react` · v0.8.1
 
 Esta guía está dirigida a equipos de desarrollo que quieren integrar el proceso de
 **firma autógrafa de Digid** dentro de su propia aplicación web, sin redirigir a sus
@@ -41,6 +41,12 @@ el mismo proceso certificado que ofrece Digid:
 > — sin pasar por identificación, selfie ni colocación manual de firmas. Este caso no
 > requiere ninguna configuración adicional de tu parte: el SDK lo detecta a partir de
 > `Data.repre` en la respuesta de `start_autografa`.
+
+> **Imagen ya guardada.** Si al llegar a los pasos 2, 3 o 4 el backend ya tiene
+> guardada la foto correspondiente (p.ej. el firmante retomó un proceso interrumpido),
+> el SDK la muestra de inmediato con el mismo diseño del preview de captura, dejando
+> claro que es la imagen guardada previamente: el firmante puede continuar con ella o
+> repetir la captura, sin volver a subir nada de por medio.
 
 Todo el estado del proceso vive en memoria del navegador: el SDK no usa
 `localStorage` ni `sessionStorage`, y apaga la cámara en cuanto termina de usarla.

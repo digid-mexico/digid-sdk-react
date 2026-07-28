@@ -50,6 +50,7 @@ import { analyzeDocumentQuality, createEnhancedDocumentImage } from '../../scan/
 import type { Corners, Rect, StillDetectDocumentResult } from '../../scan/types';
 import { ScanOverlay, type MarcoView, type QuadView } from './ScanOverlay';
 import { ScanTipsSheet } from './ScanTipsSheet';
+import { ScanPreviewLayout } from './ScanPreviewLayout';
 import { IconGallery, IconId } from './icons';
 
 export interface DocScanCaptureProps {
@@ -573,35 +574,30 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
 
   if (preview) {
     return (
-      <div className="digid-scan" data-phase="preview">
-        <div className="digid-scan__preview">
-          <p className="digid-scan__eyebrow">{preview.source}</p>
-          <h2>{side === 'back' ? s.scanUi.preview.backTitle : s.scanUi.preview.frontTitle}</h2>
-          <p className="digid-scan__subcopy">{s.scanUi.preview.subcopy}</p>
-          <img className="digid-scan__preview-img" src={preview.dataUrl} alt="Documento capturado" />
-          <ul className="digid-scan__checklist">
-            <li>
-              <span className="digid-scan__mini-check" aria-hidden="true">✓</span>
-              <span>{side === 'back' ? s.scanUi.preview.legibleBack : s.scanUi.preview.legibleFront}</span>
-            </li>
-            <li>
-              <span className="digid-scan__mini-check" aria-hidden="true">✓</span>
-              <span>{s.scanUi.preview.complete}</span>
-            </li>
-            <li>
-              <span className="digid-scan__mini-check" aria-hidden="true">✓</span>
-              <span>{s.scanUi.preview.quality(Math.round(preview.score))}</span>
-            </li>
-          </ul>
-          {!preview.ok && preview.hint && <p className="digid-scan__hint">{preview.hint}</p>}
-          <div className="digid-footer">
+      <ScanPreviewLayout
+        eyebrow={preview.source}
+        title={side === 'back' ? s.scanUi.preview.backTitle : s.scanUi.preview.frontTitle}
+        subtitle={s.scanUi.preview.subcopy}
+        imageSrc={preview.dataUrl}
+        imageAlt="Documento capturado"
+        checklist={[
+          {
+            key: 'legible',
+            label: side === 'back' ? s.scanUi.preview.legibleBack : s.scanUi.preview.legibleFront,
+          },
+          { key: 'complete', label: s.scanUi.preview.complete },
+          { key: 'quality', label: s.scanUi.preview.quality(Math.round(preview.score)) },
+        ]}
+        hint={!preview.ok && preview.hint ? preview.hint : undefined}
+        actions={
+          <>
             <Button variant="secondary" onClick={retake}>
               {s.scanUi.preview.repeat}
             </Button>
             <Button onClick={() => onCapture(preview.dataUrl)}>{s.scanUi.preview.continue}</Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
     );
   }
 

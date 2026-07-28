@@ -110,7 +110,10 @@ export const es = {
     preview: {
       frontTitle: 'Documento capturado',
       backTitle: 'Reverso capturado',
+      selfieTitle: 'Selfie capturada',
       subcopy: 'Revisa que la imagen se vea clara, completa y sin reflejos importantes.',
+      savedSubtitle: 'Esta es la imagen guardada anteriormente. Puedes continuar con ella o repetir la captura.',
+      savedCheck: 'Imagen guardada previamente',
       legibleFront: 'Imagen legible',
       legibleBack: 'Códigos y datos visibles',
       complete: 'Documento completo',

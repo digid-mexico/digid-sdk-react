@@ -305,7 +305,7 @@ describe('IdCaptureStep', () => {
     );
   });
 
-  it('muestra la imagen previa si el backend ya tiene el archivo', () => {
+  it('muestra la imagen previa si el backend ya tiene el archivo, con el diseño del preview de captura', async () => {
     const ctx = makeCtx({
       asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
         files: { idFront: 'QUJD', idBack: null, sign: null, selfie: null } },
@@ -314,6 +314,38 @@ describe('IdCaptureStep', () => {
     expect(screen.getByAltText(/identificación/i)).toHaveAttribute(
       'src', expect.stringContaining('data:image/jpeg;base64,QUJD'),
     );
+    // Mismo layout que el preview de DocScanCapture: título + checklist
+    // informativo (sin score, imagen guardada no tiene métricas de calidad)
+    // y sin el viejo botón "✕".
+    expect(screen.getByRole('heading', { name: es.scanUi.preview.frontTitle })).toBeInTheDocument();
+    expect(screen.getByText(es.scanUi.preview.savedCheck)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '✕' })).not.toBeInTheDocument();
+
+    // "Repetir captura" navega a la instrucción del paso.
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.repeat }));
+    expect(screen.getByRole('heading', { name: es.scanUi.instruction.frontTitle })).toBeInTheDocument();
+  });
+
+  it('el fast-path de imagen guardada: Continuar avanza sin volver a subir, Regresar despacha BACK', async () => {
+    const ctx = makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: 'QUJD', idBack: null, sign: null, selfie: null } },
+    });
+    renderStep(<IdCaptureStep side="front" />, ctx);
+
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.continue }));
+    await vi.waitFor(() => expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' }));
+    expect(ctx.api.saveFile).not.toHaveBeenCalled();
+  });
+
+  it('el fast-path de imagen guardada: Regresar despacha BACK', async () => {
+    const ctx = makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: 'QUJD', idBack: null, sign: null, selfie: null } },
+    });
+    renderStep(<IdCaptureStep side="front" />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.back }));
+    expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'BACK' });
   });
 
   it('un doble click en Continuar durante un guardado lento no duplica el envío', async () => {
@@ -415,20 +447,48 @@ describe('SelfieStep', () => {
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
   });
 
-  it('muestra la selfie previa si el backend ya la tiene guardada (fast path, sin instrucción)', () => {
+  it('muestra la selfie previa si el backend ya la tiene guardada (fast path, con el diseño del preview de captura)', async () => {
     const ctx = makeCtx({
       asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
         files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
     });
     renderStep(<SelfieStep />, ctx);
-    // La instrucción no aparece: sin su eyebrow ni sus botones (el resumen
-    // también renderiza un h1 con el mismo texto "Selfie", así que no sirve
-    // como distintivo aquí).
-    expect(screen.queryByText(es.scanUi.eyebrow)).not.toBeInTheDocument();
+    // La instrucción no aparece: sin sus botones propios de inicio.
     expect(screen.queryByRole('button', { name: es.scanUi.selfie.start })).not.toBeInTheDocument();
     expect(screen.getByAltText('Selfie')).toHaveAttribute(
       'src', expect.stringContaining('data:image/jpeg;base64,QUJD'),
     );
+    // Mismo layout que el preview de DocScanCapture: título propio de selfie
+    // + checklist informativo (sin score) y sin el viejo botón "✕".
+    expect(screen.getByRole('heading', { name: es.scanUi.preview.selfieTitle })).toBeInTheDocument();
+    expect(screen.getByText(es.scanUi.preview.savedCheck)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '✕' })).not.toBeInTheDocument();
+
+    // "Repetir captura" navega a la instrucción del paso.
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.repeat }));
+    expect(screen.getByRole('heading', { name: es.scanUi.selfie.title })).toBeInTheDocument();
+  });
+
+  it('el fast-path de selfie guardada: Continuar avanza sin volver a subir, Regresar despacha BACK', async () => {
+    const ctx = makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
+    });
+    renderStep(<SelfieStep />, ctx);
+
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.continue }));
+    await vi.waitFor(() => expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' }));
+    expect(ctx.api.saveFile).not.toHaveBeenCalled();
+  });
+
+  it('el fast-path de selfie guardada: Regresar despacha BACK', async () => {
+    const ctx = makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
+    });
+    renderStep(<SelfieStep />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.back }));
+    expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'BACK' });
   });
 
   it('monta GuidedCameraCapture con guide="face", detector="face-selfie" y chrome="scan" al iniciar desde la instrucción', async () => {

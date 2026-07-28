@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Stepper } from '../ui/Stepper';
 import { GuidedCameraCapture } from '../camera/GuidedCameraCapture';
 import { SelfieInstruction } from '../scan/SelfieInstruction';
+import { ScanPreviewLayout } from '../scan/ScanPreviewLayout';
 import { validateImageFile, normalizeToJpeg } from '../../utils/image';
 import { isMobileDevice } from '../../utils/device';
 
@@ -148,6 +149,45 @@ export function SelfieStep() {
             onUploadClick={() => inputRef.current?.click()}
           />
         </div>
+      ) : view === 'preview' && source.kind === 'existing' ? (
+        // Fast path: selfie ya guardada en el backend (sin métricas de
+        // calidad, así que sin checklist inventado) — mismo layout/clases
+        // que el preview de captura fresca de DocScanCapture (Task 25).
+        <>
+          <ScanPreviewLayout
+            eyebrow={s.scanUi.eyebrow}
+            title={s.scanUi.preview.selfieTitle}
+            subtitle={s.scanUi.preview.savedSubtitle}
+            imageSrc={previewSrc!}
+            imageAlt="Selfie"
+            checklist={[{ key: 'saved', label: s.scanUi.preview.savedCheck }]}
+            actions={
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    revokeCurrentObjectUrl();
+                    setSource({ kind: 'none' });
+                    setView('instruction');
+                  }}
+                >
+                  {s.scanUi.preview.repeat}
+                </Button>
+                <Button disabled={submitting} onClick={() => void submit()}>
+                  {s.scanUi.preview.continue}
+                </Button>
+              </>
+            }
+          />
+
+          <p>{s.idCapture.signatory}: {asignado?.nombre}</p>
+
+          <div className="digid-footer">
+            <Button variant="secondary" onClick={() => dispatch({ type: 'BACK' })}>
+              {s.idCapture.back}
+            </Button>
+          </div>
+        </>
       ) : (
         <>
           <h1>{s.selfie.title}</h1>

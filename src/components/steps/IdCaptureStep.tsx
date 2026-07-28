@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Stepper } from '../ui/Stepper';
 import { ScanInstruction } from '../scan/ScanInstruction';
 import { DocScanCapture } from '../scan/DocScanCapture';
+import { ScanPreviewLayout } from '../scan/ScanPreviewLayout';
 import { validateImageFile, normalizeToJpeg } from '../../utils/image';
 
 type Source =
@@ -140,6 +141,45 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
             onUploadClick={() => inputRef.current?.click()}
           />
         </div>
+      ) : view === 'preview' && source.kind === 'existing' ? (
+        // Fast path: imagen ya guardada en el backend (sin métricas de
+        // calidad, así que sin checklist inventado) — mismo layout/clases
+        // que el preview de captura fresca de DocScanCapture (Task 25).
+        <>
+          <ScanPreviewLayout
+            eyebrow={s.scanUi.eyebrow}
+            title={side === 'back' ? s.scanUi.preview.backTitle : s.scanUi.preview.frontTitle}
+            subtitle={s.scanUi.preview.savedSubtitle}
+            imageSrc={previewSrc!}
+            imageAlt={`Identificación ${side === 'front' ? 'frontal' : 'reverso'}`}
+            checklist={[{ key: 'saved', label: s.scanUi.preview.savedCheck }]}
+            actions={
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    revokeCurrentObjectUrl();
+                    setSource({ kind: 'none' });
+                    setView('instruction');
+                  }}
+                >
+                  {s.scanUi.preview.repeat}
+                </Button>
+                <Button disabled={submitting} onClick={() => void submit()}>
+                  {s.scanUi.preview.continue}
+                </Button>
+              </>
+            }
+          />
+
+          <p>{s.idCapture.signatory}: {asignado?.nombre}</p>
+
+          <div className="digid-footer">
+            <Button variant="secondary" onClick={() => dispatch({ type: 'BACK' })}>
+              {s.idCapture.back}
+            </Button>
+          </div>
+        </>
       ) : (
         <>
           <h1>{side === 'front' ? s.idCapture.frontTitle : s.idCapture.backTitle}</h1>
