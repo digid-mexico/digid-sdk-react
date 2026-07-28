@@ -1,6 +1,6 @@
 # Guía de integración — SDK de Firma Autógrafa de Digid
 
-`@digid/firma-autografa-react` · v0.7.0
+`@digid/firma-autografa-react` · v0.8.0
 
 Esta guía está dirigida a equipos de desarrollo que quieren integrar el proceso de
 **firma autógrafa de Digid** dentro de su propia aplicación web, sin redirigir a sus
@@ -19,7 +19,7 @@ el mismo proceso certificado que ofrece Digid:
 | 1 | **Revisión del documento** | El firmante ve el PDF a firmar, puede descargarlo y acepta términos y condiciones. Si el documento requiere verificación de identidad, se muestra el aviso de consentimiento KYC. El visor incluye controles de zoom (50%–300%) y navegación rápida entre páginas. |
 | 2 | **Identificación (frente)** | El firmante ve primero una pantalla de instrucción con recomendaciones de captura y, al continuar, la cámara se abre con un marco guía ID-1 superpuesto: en cuanto el SDK detecta —en el propio dispositivo, vía OpenCV— la credencial bien alineada dentro del marco y nítida, **recorta automáticamente el documento** (contorno + corrección de perspectiva) y muestra un preview con el recorte antes de continuar. También se puede capturar manualmente en cualquier momento con el botón de la cámara (recorta el marco tal cual, sin gate de calidad) o subir un archivo/foto de galería. |
 | 3 | **Identificación (reverso)** | Mismo flujo de instrucción + marco guiado + recorte automático que el paso anterior. |
-| 4 | **Selfie** | La cámara frontal se abre con un óvalo guía; el SDK detecta el rostro del firmante centrado y a buen tamaño dentro del óvalo para capturar automáticamente, con las mismas alternativas de captura manual o carga de archivo. |
+| 4 | **Selfie** | El firmante ve primero una pantalla de instrucción (mismo estilo que los pasos 2 y 3) y, al continuar, la cámara frontal se abre con un óvalo guía: el SDK detecta el rostro del firmante centrado y a buen tamaño dentro del óvalo para capturar automáticamente, con las mismas alternativas de captura manual o carga de archivo. |
 | 5 | **Creación de la firma** | El firmante dibuja su firma autógrafa en un lienzo táctil (funciona con dedo, stylus o mouse). |
 | 6 | **Colocación de firmas** | El firmante confirma una por una las posiciones de su firma sobre el documento, viéndolas superpuestas en el PDF real. La previsualización muestra la posición y el tamaño exactos con los que quedará estampada en el documento final (37×24mm físicos). |
 | 7 | **Confirmación** | Pantalla de éxito. El documento queda firmado en Digid y tu aplicación recibe el callback `onComplete`. |
@@ -56,6 +56,14 @@ Los documentos configurados en Digid con verificación de identidad/rostro a tra
 del proveedor de KYC alojado (liveness) **no están soportados todavía** por este SDK;
 ese flujo sigue disponible únicamente en la aplicación web legacy de Digid. Soporte
 para este caso está planeado para una versión futura del SDK.
+
+> **Selfie vs. prueba de vida (liveness).** El backend de Digid ya expone los
+> endpoints de prueba de vida con verificación en servidor (AWS Face Liveness) que
+> usa la aplicación legacy; este SDK **todavía no los integra**. La captura de selfie
+> descrita en la sección 1.2 es, hoy, únicamente una **fotografía**: la detección de
+> rostro corre en el dispositivo solo para encuadrarla dentro del óvalo (que quede
+> centrada, a buen tamaño y nítida), no para emitir un veredicto de vida. Integrar
+> AWS Face Liveness en el SDK es la fase futura mencionada arriba.
 
 ### 1.2 Captura automática (selfie)
 

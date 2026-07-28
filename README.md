@@ -41,8 +41,9 @@ En los pasos de INE frente/reverso, el firmante ve primero una pantalla de instr
 luego la cámara con un marco guía ID-1: el SDK detecta y **recorta automáticamente** el
 documento (contorno + corrección de perspectiva vía OpenCV, en el propio dispositivo, sin
 enviar nada a ningún servidor) en cuanto queda bien alineado dentro del marco y nítido, y
-muestra un preview con el recorte antes de continuar. En el paso de selfie, la cámara
-frontal detecta el rostro (MediaPipe) para su propia captura automática. La captura manual
+muestra un preview con el recorte antes de continuar. En el paso de selfie, el firmante
+también ve primero una instrucción y luego la cámara frontal, que detecta el rostro
+(MediaPipe) para su propia captura automática dentro de un óvalo guía. La captura manual
 con el botón o la carga de una foto desde archivo/galería siempre están disponibles como
 alternativa en los tres pasos. Ver la
 [guía de integración](docs/GUIA-INTEGRACION.md#12-captura-automática) para el detalle de
