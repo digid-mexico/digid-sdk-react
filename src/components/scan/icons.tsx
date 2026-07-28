@@ -85,6 +85,16 @@ export function IconId() {
   );
 }
 
+/** Flecha circular de "repetir" para el botón flotante del preview (Task 26). */
+export function IconRetake() {
+  return (
+    <Icon size={18} strokeWidth={2} join="round">
+      <path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1" />
+      <path d="M20.5 4v5h-5" />
+    </Icon>
+  );
+}
+
 /** Ilustración de INE frontal (port de public/ine-frontal-icon.svg). */
 export function IneFrontIcon() {
   return (

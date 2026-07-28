@@ -4,6 +4,13 @@
 // en Task 25 para que el fast-path de imagen ya guardada en el backend
 // (IdCaptureStep/SelfieStep) reutilice exactamente el mismo layout/clases en
 // vez de duplicar el markup con un diseño distinto (y más pobre).
+//
+// Task 26: `imageOverlay` permite flotar un control sobre la imagen (el
+// botón circular "Repetir captura" del preview de paso, sin robarle espacio
+// al footer) y `actions` pasa a ser opcional — el preview de paso ya no lo
+// usa (Continuar/Regresar viven en el digid-footer estándar del paso, fuera
+// de este layout), mientras que el preview de captura fresca de
+// DocScanCapture lo sigue usando tal cual.
 import type { ReactNode } from 'react';
 
 export interface ScanPreviewCheckItem {
@@ -18,12 +25,14 @@ export interface ScanPreviewLayoutProps {
   subtitle: string;
   imageSrc: string;
   imageAlt: string;
+  /** Control flotante sobre la imagen (p.ej. el botón circular "Repetir captura"). */
+  imageOverlay?: ReactNode;
   /** Filas del checklist informativo (con un check ✓ genérico a la izquierda). */
   checklist: ScanPreviewCheckItem[];
   /** Aviso opcional (p.ej. calidad insuficiente); solo aplica al preview de captura fresca. */
   hint?: string;
-  /** Botonera del footer (digid-footer), p.ej. "Repetir captura" + "Continuar". */
-  actions: ReactNode;
+  /** Botonera del footer (digid-footer), p.ej. "Repetir captura" + "Continuar". Omitir si el llamador ya trae su propio footer. */
+  actions?: ReactNode;
 }
 
 export function ScanPreviewLayout({
@@ -32,6 +41,7 @@ export function ScanPreviewLayout({
   subtitle,
   imageSrc,
   imageAlt,
+  imageOverlay,
   checklist,
   hint,
   actions,
@@ -42,7 +52,10 @@ export function ScanPreviewLayout({
         <p className="digid-scan__eyebrow">{eyebrow}</p>
         <h2>{title}</h2>
         <p className="digid-scan__subcopy">{subtitle}</p>
-        <img className="digid-scan__preview-img" src={imageSrc} alt={imageAlt} />
+        <div className="digid-scan__preview-media">
+          <img className="digid-scan__preview-img" src={imageSrc} alt={imageAlt} />
+          {imageOverlay}
+        </div>
         <ul className="digid-scan__checklist">
           {checklist.map((item) => (
             <li key={item.key}>
@@ -52,7 +65,7 @@ export function ScanPreviewLayout({
           ))}
         </ul>
         {hint && <p className="digid-scan__hint">{hint}</p>}
-        <div className="digid-footer">{actions}</div>
+        {actions && <div className="digid-footer">{actions}</div>}
       </div>
     </div>
   );

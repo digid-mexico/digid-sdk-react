@@ -39,7 +39,6 @@ describe('ScanPreviewLayout', () => {
         imageSrc="x"
         imageAlt="a"
         checklist={[{ key: 'a', label: 'ok' }]}
-        actions={null}
       />,
     );
     expect(screen.queryByText('cuidado')).not.toBeInTheDocument();
@@ -53,9 +52,44 @@ describe('ScanPreviewLayout', () => {
         imageAlt="a"
         checklist={[{ key: 'a', label: 'ok' }]}
         hint="cuidado"
-        actions={null}
       />,
     );
     expect(screen.getByText('cuidado')).toBeInTheDocument();
+  });
+
+  it('renderiza el overlay flotante dentro del wrapper de la imagen (digid-scan__preview-media)', () => {
+    const { container } = render(
+      <ScanPreviewLayout
+        eyebrow="e"
+        title="t"
+        subtitle="s"
+        imageSrc="x"
+        imageAlt="a"
+        checklist={[{ key: 'a', label: 'ok' }]}
+        imageOverlay={
+          <button type="button" aria-label="Repetir captura">
+            ↺
+          </button>
+        }
+      />,
+    );
+    const media = container.querySelector('.digid-scan__preview-media');
+    expect(media).not.toBeNull();
+    const retakeBtn = screen.getByRole('button', { name: 'Repetir captura' });
+    expect(media!.contains(retakeBtn)).toBe(true);
+  });
+
+  it('no renderiza el footer (digid-footer) cuando no se provee `actions`', () => {
+    const { container } = render(
+      <ScanPreviewLayout
+        eyebrow="e"
+        title="t"
+        subtitle="s"
+        imageSrc="x"
+        imageAlt="a"
+        checklist={[{ key: 'a', label: 'ok' }]}
+      />,
+    );
+    expect(container.querySelector('.digid-footer')).not.toBeInTheDocument();
   });
 });

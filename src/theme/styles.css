@@ -659,6 +659,10 @@
   text-align: center;
   padding: 8px 4px 4px;
 }
+.digid-scan__preview-media {
+  position: relative;
+  width: 100%;
+}
 .digid-scan__preview-img {
   width: 100%;
   max-height: 320px;
@@ -667,6 +671,26 @@
   margin-top: 16px;
   background: #edf2f7;
 }
+/* Botón flotante "Repetir captura" del preview de paso (Task 26): vidrio
+   claro sobre la imagen, esquina superior izquierda, sin robarle espacio al
+   footer (Continuar/Regresar viven en el digid-footer estándar del paso). */
+.digid-scan__retake-btn {
+  position: absolute;
+  top: 24px;
+  left: 8px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.6);
+  background: rgb(255 255 255 / 0.82);
+  backdrop-filter: blur(6px);
+  color: var(--digid-navy);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.18);
+}
+.digid-scan__retake-btn:active { transform: scale(.94); }
 .digid-scan__hint {
   margin: 10px 0 0;
   color: var(--digid-danger);

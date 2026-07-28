@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useFlow } from '../../core/FlowContext';
 import { useStrings } from '../../i18n';
 import { Button } from '../ui/Button';
-import { Stepper } from '../ui/Stepper';
 import { GuidedCameraCapture } from '../camera/GuidedCameraCapture';
 import { SelfieInstruction } from '../scan/SelfieInstruction';
 import { ScanPreviewLayout } from '../scan/ScanPreviewLayout';
+import { IconRetake } from '../scan/icons';
 import { validateImageFile, normalizeToJpeg } from '../../utils/image';
 import { isMobileDevice } from '../../utils/device';
 
@@ -60,42 +60,54 @@ export function SelfieStep() {
     }
   }
 
-  async function submit() {
-    if (submitting) return; // guarda contra doble click durante un envío en curso
-    if (source.kind === 'none') {
+  // Envía la fuente indicada (o la actual del estado, vía submit()): recibe
+  // la fuente explícita porque justo tras una captura de cámara el estado
+  // `source` todavía no se actualizó (setState es asíncrono) y leerlo aquí
+  // sería una clausura obsoleta (Task 26: un solo "Continuar" — la cámara
+  // auto-confirma en vez de esperar un segundo click en este preview).
+  async function submitSource(src: Source) {
+    if (submitting) return; // guarda contra doble click/doble auto-envío
+    if (src.kind === 'none') {
       notify('warning', s.idCapture.needPhoto);
       return;
     }
     setSubmitting(true);
     setBusy(true);
     try {
-      if (source.kind !== 'existing') {
+      if (src.kind !== 'existing') {
         const idFirma = asignado?.firma?.id ?? 0;
-        if (source.kind === 'file') {
+        if (src.kind === 'file') {
           // normalizeToJpeg quita EXIF y limita dimensiones; si falla (p.ej.
           // jsdom o un formato no soportado por createImageBitmap) se sube el
           // archivo original sin bloquear al usuario, pero se deja constancia
           // de que no se pudo re-codificar (EXIF, incl. GPS, no removido).
-          const blob = await normalizeToJpeg(source.file).catch((err) => {
+          const blob = await normalizeToJpeg(src.file).catch((err) => {
             console.warn(
               '[SelfieStep] No fue posible re-codificar la imagen; se sube el archivo ' +
                 'original sin remover metadatos EXIF.',
               err,
             );
-            return source.file;
+            return src.file;
           });
           await api.saveFile({ step: 'selfie', idFirma, file: blob });
         } else {
-          await api.saveFile({ step: 'selfie', idFirma, webCameraDataUrl: source.dataUrl });
+          await api.saveFile({ step: 'selfie', idFirma, webCameraDataUrl: src.dataUrl });
         }
       }
       dispatch({ type: 'NEXT' });
     } catch {
       notify('error', s.errors.generic);
+      // Aterriza en el preview del paso (imagen conservada) para poder
+      // reintentar con el botón Continuar, en vez de quedarse en la cámara.
+      setView('preview');
     } finally {
       setBusy(false);
       setSubmitting(false);
     }
+  }
+
+  function submit() {
+    return submitSource(source);
   }
 
   const previewSrc =
@@ -104,9 +116,18 @@ export function SelfieStep() {
     : source.kind === 'camera' ? source.dataUrl
     : null;
 
+  // Restaura la selfie ya guardada en el backend y vuelve al preview: usado
+  // por el cancelar de la cámara y el "Regresar" de la instrucción cuando el
+  // paso ya tenía una imagen (Task 26) — así un intento de captura fallido o
+  // cancelado no deja al firmante sin poder continuar con la que ya tenía.
+  function goToSavedPreview() {
+    setSource({ kind: 'existing', base64: existing! });
+    setView('preview');
+  }
+
   // La cámara ocupa toda la sección (full-bleed, chrome navy propio con su
-  // botón de cerrar): sin encabezado/Stepper del SDK alrededor mientras está
-  // activa, igual que DocScanCapture en IdCaptureStep (Task 23).
+  // botón de cerrar): sin encabezado del SDK alrededor mientras está activa,
+  // igual que DocScanCapture en IdCaptureStep (Task 23).
   if (view === 'camera') {
     return (
       <GuidedCameraCapture
@@ -120,11 +141,14 @@ export function SelfieStep() {
         // convención (IsComputer() en el flujo legacy); en móvil la cámara
         // frontal ya se captura en la orientación correcta y no debe voltearse.
         mirror={!isMobileDevice()}
-        onCancel={() => setView('instruction')}
+        onCancel={() => (existing ? goToSavedPreview() : setView('instruction'))}
         onCapture={(dataUrl) => {
-          setSource({ kind: 'camera', dataUrl });
-          setView('preview');
+          const captured: Source = { kind: 'camera', dataUrl };
+          setSource(captured);
           notify('success', s.idCapture.captured);
+          // Un solo "Continuar": el preview propio de la cámara ya fue la
+          // revisión; aquí se envía directo.
+          void submitSource(captured);
         }}
       />
     );
@@ -132,8 +156,6 @@ export function SelfieStep() {
 
   return (
     <section aria-label={s.selfie.title}>
-      <Stepper steps={s.steps} active={0} />
-
       {view === 'instruction' ? (
         <div
           onDragOver={(e) => e.preventDefault()}
@@ -145,15 +167,17 @@ export function SelfieStep() {
         >
           <SelfieInstruction
             onStart={() => setView('camera')}
-            onBack={() => dispatch({ type: 'BACK' })}
+            onBack={() => (existing ? goToSavedPreview() : dispatch({ type: 'BACK' }))}
             onUploadClick={() => inputRef.current?.click()}
           />
         </div>
       ) : (
-        // Preview unificado (Task 25): mismo layout/clases que el preview de
-        // captura fresca de DocScanCapture para las tres fuentes de imagen
-        // (backend, archivo subido, cámara) — sin inventar métricas de
-        // calidad; aquí solo un check informativo según el origen.
+        // Preview unificado (Task 25/26): mismo layout/clases que el preview
+        // de captura fresca de DocScanCapture para las tres fuentes de
+        // imagen (backend, archivo subido, cámara) — sin inventar métricas
+        // de calidad; aquí solo un check informativo según el origen.
+        // "Repetir captura" flota sobre la imagen; Continuar/Regresar viven
+        // en el footer estándar del paso.
         <>
           <ScanPreviewLayout
             eyebrow={s.scanUi.eyebrow}
@@ -161,29 +185,26 @@ export function SelfieStep() {
             subtitle={source.kind === 'existing' ? s.scanUi.preview.savedSubtitle : s.scanUi.preview.subcopy}
             imageSrc={previewSrc!}
             imageAlt="Selfie"
+            imageOverlay={
+              <button
+                type="button"
+                className="digid-scan__retake-btn"
+                aria-label={s.scanUi.preview.repeat}
+                onClick={() => {
+                  revokeCurrentObjectUrl();
+                  setSource({ kind: 'none' });
+                  setView('instruction');
+                }}
+              >
+                <IconRetake />
+              </button>
+            }
             checklist={[
               {
                 key: 'status',
                 label: source.kind === 'existing' ? s.scanUi.preview.savedCheck : s.scanUi.preview.uploadedCheck,
               },
             ]}
-            actions={
-              <>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    revokeCurrentObjectUrl();
-                    setSource({ kind: 'none' });
-                    setView('instruction');
-                  }}
-                >
-                  {s.scanUi.preview.repeat}
-                </Button>
-                <Button disabled={source.kind === 'none' || submitting} onClick={() => void submit()}>
-                  {s.scanUi.preview.continue}
-                </Button>
-              </>
-            }
           />
 
           <p>{s.idCapture.signatory}: {asignado?.nombre}</p>
@@ -191,6 +212,9 @@ export function SelfieStep() {
           <div className="digid-footer">
             <Button variant="secondary" onClick={() => dispatch({ type: 'BACK' })}>
               {s.idCapture.back}
+            </Button>
+            <Button disabled={source.kind === 'none' || submitting} onClick={() => void submit()}>
+              {s.idCapture.continue}
             </Button>
           </div>
         </>

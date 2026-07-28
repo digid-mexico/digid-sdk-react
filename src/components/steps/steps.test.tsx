@@ -277,19 +277,22 @@ describe('IdCaptureStep', () => {
 
   it('sube el archivo con step=ine_frente y avanza, con el mismo preview unificado (título + "Archivo cargado")', async () => {
     const ctx = makeCtx();
-    renderStep(<IdCaptureStep side="front" />, ctx);
+    const { container } = renderStep(<IdCaptureStep side="front" />, ctx);
     const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'ine.jpg', {
       type: 'image/jpeg',
     });
     await userEvent.upload(input, file);
 
-    // Mismo layout que el fast-path de imagen guardada (Task 25): título +
-    // check informativo de origen ("Archivo cargado", sin score inventado)
-    // y sin el viejo botón "✕".
+    // Mismo layout que el fast-path de imagen guardada: título + check
+    // informativo de origen ("Archivo cargado", sin score inventado) y sin
+    // el viejo botón "✕". "Repetir captura" flota sobre la imagen (Task 26);
+    // Continuar vive en el footer estándar del paso, no en el layout.
     expect(screen.getByRole('heading', { name: es.scanUi.preview.frontTitle })).toBeInTheDocument();
     expect(screen.getByText(es.scanUi.preview.uploadedCheck)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '✕' })).not.toBeInTheDocument();
+    expect(container.querySelector('.digid-scan__preview .digid-footer')).not.toBeInTheDocument();
+    expect(container.querySelector('.digid-scan__retake-btn')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
     await vi.waitFor(() =>
@@ -300,7 +303,7 @@ describe('IdCaptureStep', () => {
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
   });
 
-  it('"Repetir captura" tras subir un archivo regresa a la instrucción', async () => {
+  it('"Repetir captura" (botón flotante) tras subir un archivo regresa a la instrucción', async () => {
     const ctx = makeCtx();
     renderStep(<IdCaptureStep side="front" />, ctx);
     const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
@@ -327,30 +330,38 @@ describe('IdCaptureStep', () => {
       asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
         files: { idFront: 'QUJD', idBack: null, sign: null, selfie: null } },
     });
-    renderStep(<IdCaptureStep side="front" />, ctx);
+    const { container } = renderStep(<IdCaptureStep side="front" />, ctx);
     expect(screen.getByAltText(/identificación/i)).toHaveAttribute(
       'src', expect.stringContaining('data:image/jpeg;base64,QUJD'),
     );
     // Mismo layout que el preview de DocScanCapture: título + checklist
     // informativo (sin score, imagen guardada no tiene métricas de calidad)
-    // y sin el viejo botón "✕".
+    // y sin el viejo botón "✕". Continuar/Regresar en el footer estándar.
     expect(screen.getByRole('heading', { name: es.scanUi.preview.frontTitle })).toBeInTheDocument();
     expect(screen.getByText(es.scanUi.preview.savedCheck)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '✕' })).not.toBeInTheDocument();
+    expect(container.querySelector('.digid-scan__preview .digid-footer')).not.toBeInTheDocument();
+    expect(container.querySelector('.digid-scan__retake-btn')).toBeInTheDocument();
 
-    // "Repetir captura" navega a la instrucción del paso.
+    // "Repetir captura" (botón flotante sobre la imagen) navega a la
+    // instrucción del paso.
     await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.repeat }));
     expect(screen.getByRole('heading', { name: es.scanUi.instruction.frontTitle })).toBeInTheDocument();
   });
 
-  it('el fast-path de imagen guardada: Continuar avanza sin volver a subir, Regresar despacha BACK', async () => {
+  it('el fast-path de imagen guardada: Continuar (footer) avanza sin volver a subir, Regresar despacha BACK', async () => {
     const ctx = makeCtx({
       asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
         files: { idFront: 'QUJD', idBack: null, sign: null, selfie: null } },
     });
     renderStep(<IdCaptureStep side="front" />, ctx);
 
-    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.continue }));
+    // Continuar y Regresar viven en la misma fila del footer estándar.
+    expect(
+      screen.getByRole('button', { name: es.idCapture.back }).parentElement,
+    ).toBe(screen.getByRole('button', { name: es.idCapture.continue }).parentElement);
+
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
     await vi.waitFor(() => expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' }));
     expect(ctx.api.saveFile).not.toHaveBeenCalled();
   });
@@ -405,7 +416,7 @@ describe('IdCaptureStep', () => {
     expect(screen.getByTestId('doc-scan-mock')).toHaveAttribute('data-side', 'back');
   });
 
-  it('cancelar el escáner regresa a la instrucción', async () => {
+  it('cancelar el escáner regresa a la instrucción (sin imagen guardada)', async () => {
     const ctx = makeCtx();
     renderStep(<IdCaptureStep side="front" />, ctx);
     await userEvent.click(screen.getByRole('button', { name: es.scanUi.instruction.start }));
@@ -413,21 +424,87 @@ describe('IdCaptureStep', () => {
     expect(screen.getByRole('heading', { name: es.scanUi.instruction.frontTitle })).toBeInTheDocument();
   });
 
-  it('confirmar la captura del escáner muestra el resumen y permite continuar', async () => {
+  it('cancelar el escáner con imagen guardada regresa al preview guardado (no a la instrucción)', async () => {
+    const ctx = makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: 'QUJD', idBack: null, sign: null, selfie: null } },
+    });
+    renderStep(<IdCaptureStep side="front" />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.repeat }));
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.instruction.start }));
+    await userEvent.click(screen.getByRole('button', { name: 'cerrar escáner mock' }));
+
+    expect(screen.getByRole('heading', { name: es.scanUi.preview.frontTitle })).toBeInTheDocument();
+    expect(screen.getByText(es.scanUi.preview.savedCheck)).toBeInTheDocument();
+    expect(screen.getByAltText(/identificación/i)).toHaveAttribute(
+      'src', expect.stringContaining('data:image/jpeg;base64,QUJD'),
+    );
+  });
+
+  it('"Regresar" de la instrucción con imagen guardada regresa al preview guardado (no despacha BACK)', async () => {
+    const ctx = makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: 'QUJD', idBack: null, sign: null, selfie: null } },
+    });
+    renderStep(<IdCaptureStep side="front" />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.repeat }));
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.instruction.back }));
+
+    expect(ctx.dispatch).not.toHaveBeenCalledWith({ type: 'BACK' });
+    expect(screen.getByRole('heading', { name: es.scanUi.preview.frontTitle })).toBeInTheDocument();
+  });
+
+  it('confirmar la captura del escáner envía directo (un solo Continuar) y avanza', async () => {
     const ctx = makeCtx();
     renderStep(<IdCaptureStep side="front" />, ctx);
     await userEvent.click(screen.getByRole('button', { name: es.scanUi.instruction.start }));
     await userEvent.click(screen.getByRole('button', { name: 'confirmar escaneo mock' }));
-    expect(screen.getByAltText(/identificación/i)).toHaveAttribute(
-      'src', expect.stringContaining('data:image/jpeg;base64,scanned'),
-    );
-    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+
+    // Sin segunda parada de preview ni segundo click en Continuar: el
+    // preview de DocScanCapture ya fue la revisión (Task 26).
     await vi.waitFor(() =>
       expect(ctx.api.saveFile).toHaveBeenCalledWith(
         expect.objectContaining({ step: 'ine_frente', webCameraDataUrl: 'data:image/jpeg;base64,scanned' }),
       ),
     );
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
+  });
+
+  it('si el envío falla tras la captura de cámara, aterriza en el preview del paso para reintentar', async () => {
+    const ctx = makeCtx({
+      api: {
+        fileUrl: (p: string) => p,
+        saveFile: vi.fn()
+          .mockRejectedValueOnce(new Error('network'))
+          .mockResolvedValueOnce({ Success: true, Step: 0 }),
+      } as never,
+    });
+    renderStep(<IdCaptureStep side="front" />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.instruction.start }));
+    await userEvent.click(screen.getByRole('button', { name: 'confirmar escaneo mock' }));
+
+    await vi.waitFor(() => expect(ctx.notify).toHaveBeenCalledWith('error', es.errors.generic));
+    expect(ctx.dispatch).not.toHaveBeenCalledWith({ type: 'NEXT' });
+    // Imagen conservada en el preview del paso, lista para reintentar.
+    expect(screen.getByRole('heading', { name: es.scanUi.preview.frontTitle })).toBeInTheDocument();
+    expect(screen.getByAltText(/identificación/i)).toHaveAttribute(
+      'src', expect.stringContaining('data:image/jpeg;base64,scanned'),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+    await vi.waitFor(() => expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' }));
+    expect(ctx.api.saveFile).toHaveBeenCalledTimes(2);
+  });
+
+  it('no muestra el Stepper del SDK en ninguna vista (más espacio para la captura)', () => {
+    const { container: withoutExisting } = renderStep(<IdCaptureStep side="front" />, makeCtx());
+    expect(withoutExisting.querySelector('.digid-stepper')).not.toBeInTheDocument();
+
+    const { container: withExisting } = renderStep(<IdCaptureStep side="front" />, makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: 'QUJD', idBack: null, sign: null, selfie: null } },
+    }));
+    expect(withExisting.querySelector('.digid-stepper')).not.toBeInTheDocument();
   });
 });
 
@@ -449,19 +526,22 @@ describe('SelfieStep', () => {
 
   it('sube el archivo con step=selfie y avanza, con el mismo preview unificado (título + "Archivo cargado")', async () => {
     const ctx = makeCtx();
-    renderStep(<SelfieStep />, ctx);
+    const { container } = renderStep(<SelfieStep />, ctx);
     const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'selfie.jpg', {
       type: 'image/jpeg',
     });
     await userEvent.upload(input, file);
 
-    // Mismo layout que el fast-path de selfie guardada (Task 25): título +
-    // check informativo de origen ("Archivo cargado", sin score inventado)
-    // y sin el viejo botón "✕".
+    // Mismo layout que el fast-path de selfie guardada: título + check
+    // informativo de origen ("Archivo cargado", sin score inventado) y sin
+    // el viejo botón "✕". "Repetir captura" flota sobre la imagen (Task 26);
+    // Continuar vive en el footer estándar del paso, no en el layout.
     expect(screen.getByRole('heading', { name: es.scanUi.preview.selfieTitle })).toBeInTheDocument();
     expect(screen.getByText(es.scanUi.preview.uploadedCheck)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '✕' })).not.toBeInTheDocument();
+    expect(container.querySelector('.digid-scan__preview .digid-footer')).not.toBeInTheDocument();
+    expect(container.querySelector('.digid-scan__retake-btn')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
     await vi.waitFor(() =>
@@ -472,7 +552,7 @@ describe('SelfieStep', () => {
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
   });
 
-  it('"Repetir captura" tras subir una selfie regresa a la instrucción', async () => {
+  it('"Repetir captura" (botón flotante) tras subir una selfie regresa a la instrucción', async () => {
     const ctx = makeCtx();
     renderStep(<SelfieStep />, ctx);
     const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
@@ -486,7 +566,7 @@ describe('SelfieStep', () => {
       asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
         files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
     });
-    renderStep(<SelfieStep />, ctx);
+    const { container } = renderStep(<SelfieStep />, ctx);
     // La instrucción no aparece: sin sus botones propios de inicio.
     expect(screen.queryByRole('button', { name: es.scanUi.selfie.start })).not.toBeInTheDocument();
     expect(screen.getByAltText('Selfie')).toHaveAttribute(
@@ -497,20 +577,27 @@ describe('SelfieStep', () => {
     expect(screen.getByRole('heading', { name: es.scanUi.preview.selfieTitle })).toBeInTheDocument();
     expect(screen.getByText(es.scanUi.preview.savedCheck)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '✕' })).not.toBeInTheDocument();
+    expect(container.querySelector('.digid-scan__preview .digid-footer')).not.toBeInTheDocument();
+    expect(container.querySelector('.digid-scan__retake-btn')).toBeInTheDocument();
 
-    // "Repetir captura" navega a la instrucción del paso.
+    // "Repetir captura" (botón flotante sobre la imagen) navega a la
+    // instrucción del paso.
     await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.repeat }));
     expect(screen.getByRole('heading', { name: es.scanUi.selfie.title })).toBeInTheDocument();
   });
 
-  it('el fast-path de selfie guardada: Continuar avanza sin volver a subir, Regresar despacha BACK', async () => {
+  it('el fast-path de selfie guardada: Continuar (footer) avanza sin volver a subir, Regresar despacha BACK', async () => {
     const ctx = makeCtx({
       asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
         files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
     });
     renderStep(<SelfieStep />, ctx);
 
-    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.continue }));
+    expect(
+      screen.getByRole('button', { name: es.idCapture.back }).parentElement,
+    ).toBe(screen.getByRole('button', { name: es.idCapture.continue }).parentElement);
+
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
     await vi.waitFor(() => expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' }));
     expect(ctx.api.saveFile).not.toHaveBeenCalled();
   });
@@ -535,7 +622,7 @@ describe('SelfieStep', () => {
     expect(mock).toHaveAttribute('data-chrome', 'scan');
   });
 
-  it('cancelar la cámara regresa a la instrucción', async () => {
+  it('cancelar la cámara regresa a la instrucción (sin selfie guardada)', async () => {
     const ctx = makeCtx();
     renderStep(<SelfieStep />, ctx);
     await userEvent.click(screen.getByRole('button', { name: es.scanUi.selfie.start }));
@@ -543,28 +630,91 @@ describe('SelfieStep', () => {
     expect(screen.getByRole('heading', { name: es.scanUi.selfie.title })).toBeInTheDocument();
   });
 
-  it('el botón Regresar de la instrucción despacha BACK', async () => {
+  it('cancelar la cámara con selfie guardada regresa al preview guardado (no a la instrucción)', async () => {
+    const ctx = makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
+    });
+    renderStep(<SelfieStep />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.repeat }));
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.selfie.start }));
+    await userEvent.click(screen.getByRole('button', { name: 'cerrar cámara mock' }));
+
+    expect(screen.getByRole('heading', { name: es.scanUi.preview.selfieTitle })).toBeInTheDocument();
+    expect(screen.getByText(es.scanUi.preview.savedCheck)).toBeInTheDocument();
+    expect(screen.getByAltText('Selfie')).toHaveAttribute(
+      'src', expect.stringContaining('data:image/jpeg;base64,QUJD'),
+    );
+  });
+
+  it('el botón Regresar de la instrucción despacha BACK (sin selfie guardada)', async () => {
     const ctx = makeCtx();
     renderStep(<SelfieStep />, ctx);
     await userEvent.click(screen.getByRole('button', { name: es.scanUi.selfie.back }));
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'BACK' });
   });
 
-  it('confirmar la captura de la cámara muestra el resumen y permite continuar (pipeline de envío sin cambios)', async () => {
+  it('"Regresar" de la instrucción con selfie guardada regresa al preview guardado (no despacha BACK)', async () => {
+    const ctx = makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
+    });
+    renderStep(<SelfieStep />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.repeat }));
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.selfie.back }));
+
+    expect(ctx.dispatch).not.toHaveBeenCalledWith({ type: 'BACK' });
+    expect(screen.getByRole('heading', { name: es.scanUi.preview.selfieTitle })).toBeInTheDocument();
+  });
+
+  it('confirmar la captura de la cámara envía directo (un solo Continuar) y avanza', async () => {
     const ctx = makeCtx();
     renderStep(<SelfieStep />, ctx);
     await userEvent.click(screen.getByRole('button', { name: es.scanUi.selfie.start }));
     await userEvent.click(screen.getByRole('button', { name: 'confirmar selfie mock' }));
-    expect(screen.getByAltText('Selfie')).toHaveAttribute(
-      'src', expect.stringContaining('data:image/jpeg;base64,selfiecam'),
-    );
-    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+
     await vi.waitFor(() =>
       expect(ctx.api.saveFile).toHaveBeenCalledWith(
         expect.objectContaining({ step: 'selfie', webCameraDataUrl: 'data:image/jpeg;base64,selfiecam' }),
       ),
     );
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
+  });
+
+  it('si el envío falla tras la captura de la cámara, aterriza en el preview del paso para reintentar', async () => {
+    const ctx = makeCtx({
+      api: {
+        fileUrl: (p: string) => p,
+        saveFile: vi.fn()
+          .mockRejectedValueOnce(new Error('network'))
+          .mockResolvedValueOnce({ Success: true, Step: 0 }),
+      } as never,
+    });
+    renderStep(<SelfieStep />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.selfie.start }));
+    await userEvent.click(screen.getByRole('button', { name: 'confirmar selfie mock' }));
+
+    await vi.waitFor(() => expect(ctx.notify).toHaveBeenCalledWith('error', es.errors.generic));
+    expect(ctx.dispatch).not.toHaveBeenCalledWith({ type: 'NEXT' });
+    expect(screen.getByRole('heading', { name: es.scanUi.preview.selfieTitle })).toBeInTheDocument();
+    expect(screen.getByAltText('Selfie')).toHaveAttribute(
+      'src', expect.stringContaining('data:image/jpeg;base64,selfiecam'),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+    await vi.waitFor(() => expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' }));
+    expect(ctx.api.saveFile).toHaveBeenCalledTimes(2);
+  });
+
+  it('no muestra el Stepper del SDK en ninguna vista (más espacio para la captura)', () => {
+    const { container: withoutExisting } = renderStep(<SelfieStep />, makeCtx());
+    expect(withoutExisting.querySelector('.digid-stepper')).not.toBeInTheDocument();
+
+    const { container: withExisting } = renderStep(<SelfieStep />, makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
+    }));
+    expect(withExisting.querySelector('.digid-stepper')).not.toBeInTheDocument();
   });
 });
 
