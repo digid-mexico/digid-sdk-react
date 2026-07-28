@@ -14,7 +14,9 @@ vi.mock('./pdf/PdfViewer', () => {
     }) => {
       const cbRef = useRef(onPagesRendered);
       cbRef.current = onPagesRendered;
-      useEffect(() => { cbRef.current?.([{ numPage: 1, width: 612, height: 792 }]); }, []);
+      useEffect(() => {
+        cbRef.current?.([{ numPage: 1, width: 612, height: 792, widthPt: 612, heightPt: 792 }]);
+      }, []);
       return <div data-testid="pdf-mock">{children}</div>;
     },
   };

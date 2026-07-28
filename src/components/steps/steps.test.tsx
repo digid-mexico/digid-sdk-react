@@ -23,7 +23,7 @@ vi.mock('../pdf/PdfViewer', () => ({
     const onPagesRenderedRef = useRef(onPagesRendered);
     onPagesRenderedRef.current = onPagesRendered;
     useEffect(() => {
-      onPagesRenderedRef.current?.([{ numPage: 1, width: 612, height: 792 }]);
+      onPagesRenderedRef.current?.([{ numPage: 1, width: 612, height: 792, widthPt: 612, heightPt: 792 }]);
     }, []);
     return <div data-testid="pdf-mock" data-toolbar={String(!!toolbar)}>{children}</div>;
   },
@@ -380,6 +380,18 @@ describe('PlaceSignaturesStep', () => {
     const { container } = renderStep(<PlaceSignaturesStep />, ctx);
     await screen.findByRole('button', { name: /Firma 1\/2/ });
     expect(container.querySelectorAll('.digid-sign-overlay').length).toBeGreaterThan(0);
+  });
+
+  it('el tamaño del overlay es adaptativo: 37x24mm convertidos a css px según widthPt de la página', async () => {
+    // Página carta (widthPt 612) renderizada a su ancho físico (612 css px,
+    // ver mock de PdfViewer): 37mm ≈ 104.88px, 24mm ≈ 68.03px.
+    const { ctx } = ctxWithFirmas();
+    const { container } = renderStep(<PlaceSignaturesStep />, ctx);
+    await screen.findByRole('button', { name: /Firma 1\/2/ });
+    const overlay = container.querySelector<HTMLDivElement>('.digid-sign-overlay');
+    expect(overlay).not.toBeNull();
+    expect(overlay!.style.width).toMatch(/^104\.8/);
+    expect(overlay!.style.height).toMatch(/^68\.0/);
   });
 
   it('NO habilita el toolbar de zoom (el zoom desalinearía el cálculo de overlays)', async () => {

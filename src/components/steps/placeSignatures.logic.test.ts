@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parseCoordinates, computeOverlayPosition } from './placeSignatures.logic';
+import {
+  parseCoordinates, computeOverlayPosition, computeOverlaySize, computeOverlayRect,
+} from './placeSignatures.logic';
 import type { PageInfo } from '../pdf/PdfViewer';
 
 const pages: PageInfo[] = [
-  { numPage: 1, width: 612, height: 792 },
-  { numPage: 2, width: 612, height: 792 },
+  { numPage: 1, width: 612, height: 792, widthPt: 612, heightPt: 792 },
+  { numPage: 2, width: 612, height: 792, widthPt: 612, heightPt: 792 },
 ];
 
 describe('parseCoordinates', () => {
@@ -51,5 +53,56 @@ describe('computeOverlayPosition', () => {
     // margen negativo (500 - 612) / 2 = -56 → se recorta a 0
     const pos = computeOverlayPosition(coord, pages, 500)!;
     expect(pos.x).toBeCloseTo(0);
+  });
+});
+
+describe('computeOverlaySize', () => {
+  it('carta (letter) renderizada a su ancho físico (scale 1): 37×24mm → ≈104.88×68.03 css px', () => {
+    const page: PageInfo = { numPage: 1, width: 612, height: 792, widthPt: 612, heightPt: 792 };
+    const size = computeOverlaySize(page);
+    expect(size.width).toBeCloseTo(104.9, 1);
+    expect(size.height).toBeCloseTo(68.0, 1);
+  });
+
+  it('a la mitad del render (mismo widthPt, mitad de width renderizado) el overlay también se reduce a la mitad', () => {
+    const page: PageInfo = { numPage: 1, width: 306, height: 396, widthPt: 612, heightPt: 792 };
+    const size = computeOverlaySize(page);
+    expect(size.width).toBeCloseTo(52.4, 1);
+    expect(size.height).toBeCloseTo(34.0, 1);
+  });
+
+  it('A4 renderizada a su ancho físico (scale 1) da el mismo tamaño css: 37mm es 37mm sin importar el tamaño de página', () => {
+    const page: PageInfo = { numPage: 1, width: 595.28, height: 841.89, widthPt: 595.28, heightPt: 841.89 };
+    const size = computeOverlaySize(page);
+    expect(size.width).toBeCloseTo(104.9, 1);
+    expect(size.height).toBeCloseTo(68.0, 1);
+  });
+
+  it('usa el fallback fijo 100×50 si falta widthPt (compatibilidad con mocks/entornos viejos)', () => {
+    const page = { numPage: 1, width: 612, height: 792, widthPt: 0, heightPt: 0 } as PageInfo;
+    const size = computeOverlaySize(page);
+    expect(size.width).toBe(100);
+    expect(size.height).toBe(50);
+  });
+});
+
+describe('computeOverlayRect', () => {
+  it('combina posición y tamaño para la página correspondiente', () => {
+    const rectPages: PageInfo[] = [
+      { numPage: 1, width: 612, height: 792, widthPt: 612, heightPt: 792 },
+    ];
+    const coord = { id: 'a', firmante: 7, pagina: 1, xDoc: 0, ydoc: 0,
+      AnchoPagina: 612, altoPagina: 792, position: 0, nombre: 'Ana' };
+    const rect = computeOverlayRect(coord, rectPages, 612)!;
+    expect(rect.x).toBeCloseTo(0);
+    expect(rect.y).toBeCloseTo(0);
+    expect(rect.width).toBeCloseTo(104.9, 1);
+    expect(rect.height).toBeCloseTo(68.0, 1);
+  });
+
+  it('devuelve null si la página no existe', () => {
+    const coord = { id: 'a', firmante: 7, pagina: 99, xDoc: 0, ydoc: 0,
+      AnchoPagina: 612, altoPagina: 792, position: 0, nombre: 'Ana' };
+    expect(computeOverlayRect(coord, pages, 612)).toBeNull();
   });
 });

@@ -6,6 +6,15 @@ export interface PageInfo {
   numPage: number;
   width: number; // px CSS renderizados
   height: number;
+  /**
+   * Dimensiones físicas de la página (viewport de pdf.js a scale 1, en
+   * puntos PDF: 1pt = 25.4/72 mm). A diferencia de `width`/`height`, NO
+   * cambian con el zoom — se usan para calcular el tamaño del overlay de
+   * firma en css px de forma que corresponda exactamente al rectángulo
+   * físico (37×24mm) que el backend estampa en el PDF final.
+   */
+  widthPt: number;
+  heightPt: number;
 }
 
 const ZOOM_STEP = 0.25;
@@ -86,10 +95,14 @@ function pageAtScrollTop(pages: PageInfo[], scrollTop: number): number {
   return current;
 }
 
+/** Dimensiones físicas de una página a scale 1 (puntos PDF), zoom-independientes. */
+interface PagePt { widthPt: number; heightPt: number }
+
 /** Documento + páginas ya descargados y parseados, listos para renderizar a cualquier escala. */
 interface LoadedDoc {
   pdfPages: PDFPageProxy[];
   maxWidth: number; // ancho (scale 1) de la página más ancha, para calcular la escala de ajuste
+  pagesPt: PagePt[]; // dimensiones físicas (scale 1) por página, mismo orden que pdfPages
 }
 
 export function PdfViewer({
@@ -149,16 +162,18 @@ export function PdfViewer({
         doc = pdf;
 
         const pdfPages: PDFPageProxy[] = [];
+        const pagesPt: PagePt[] = [];
         let maxWidth = 0;
         for (let i = 1; i <= pdf.numPages; i++) {
           if (cancelled) return;
           const page = await pdf.getPage(i);
           pdfPages.push(page);
           const vp = page.getViewport({ scale: 1 });
+          pagesPt.push({ widthPt: vp.width, heightPt: vp.height });
           maxWidth = Math.max(maxWidth, vp.width);
         }
         if (cancelled) return;
-        setLoadedDoc({ pdfPages, maxWidth });
+        setLoadedDoc({ pdfPages, maxWidth, pagesPt });
       } catch (err) {
         console.error(err);
         if (!cancelled) setError('No fue posible cargar el documento PDF.');
@@ -198,7 +213,7 @@ export function PdfViewer({
 
       // Escala: ancho del contenedor / página más ancha, multiplicado por
       // el zoom del toolbar (1 si no hay toolbar).
-      const { pdfPages, maxWidth } = loadedDoc;
+      const { pdfPages, maxWidth, pagesPt } = loadedDoc;
       const scale = ((container.clientWidth || maxWidth) / maxWidth) * zoom;
       const dpr = Math.max(1.5, window.devicePixelRatio || 1);
 
@@ -226,7 +241,14 @@ export function PdfViewer({
         if (cancelled) return;
         pagesEl.appendChild(canvas);
         canvasesRef.current.push(canvas);
-        rendered.push({ numPage, width: viewport.width / dpr, height: viewport.height / dpr });
+        const pt = pagesPt[idx];
+        rendered.push({
+          numPage,
+          width: viewport.width / dpr,
+          height: viewport.height / dpr,
+          widthPt: pt?.widthPt ?? 0,
+          heightPt: pt?.heightPt ?? 0,
+        });
       }
 
       container.scrollTop = scrollRatio * container.scrollHeight;

@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { Stepper } from '../ui/Stepper';
 import { PdfViewer, type PageInfo } from '../pdf/PdfViewer';
 import {
-  computeOverlayPosition, parseCoordinates, type OverlayPosition,
+  computeOverlayRect, parseCoordinates, type OverlayRect,
 } from './placeSignatures.logic';
 
 export function PlaceSignaturesStep() {
@@ -35,7 +35,7 @@ export function PlaceSignaturesStep() {
     }
   }, [data]);
 
-  const overlays: (OverlayPosition & { id: string })[] = useMemo(() => {
+  const overlays: (OverlayRect & { id: string })[] = useMemo(() => {
     if (pages.length === 0) return [];
     // Medir el mismo elemento que PdfViewer usa para escalar sus páginas
     // (.digid-pdf), no el <section> exterior: .digid-pdf pierde ancho frente
@@ -49,10 +49,10 @@ export function PlaceSignaturesStep() {
     return coords
       .slice(0, Math.min(placed + 1, coords.length)) // confirmadas + la actual en preview
       .map((c) => {
-        const pos = computeOverlayPosition(c, pages, width);
-        return pos ? { ...pos, id: c.id } : null;
+        const rect = computeOverlayRect(c, pages, width);
+        return rect ? { ...rect, id: c.id } : null;
       })
-      .filter((p): p is OverlayPosition & { id: string } => p !== null);
+      .filter((r): r is OverlayRect & { id: string } => r !== null);
   }, [coords, pages, placed]);
 
   // Auto-scroll a la firma activa (comportamiento de firmar.js)
@@ -104,12 +104,15 @@ export function PlaceSignaturesStep() {
           <div
             key={o.id}
             className="digid-sign-overlay"
-            // Tamaño fijo 100x50 por ahora: el flujo legacy (firmar.js) usa un
-            // tamaño responsive (60x40 en móvil, 194x120 en escritorio). Hay
-            // que verificar la paridad visual contra el legacy en el
-            // playground (Task 13) y ajustar si hace falta.
+            // Tamaño adaptativo: el backend estampa la imagen de firma a un
+            // tamaño FIJO de 37×24mm físicos sobre el PDF final (FPDI/FPDF,
+            // ver SignatureNotificationService). `computeOverlayRect` convierte
+            // esos 37×24mm a css px usando las dimensiones físicas reales de
+            // la página (PageInfo.widthPt/heightPt), así que este overlay
+            // siempre coincide con lo que terminará impreso, sin importar el
+            // tamaño de página, el zoom o el ancho del contenedor.
             style={{
-              top: o.y, left: o.x, width: 100, height: 50,
+              top: o.y, left: o.x, width: o.width, height: o.height,
               transform: o.rotation ? `rotate(${o.rotation}deg)` : undefined,
             }}
           >
