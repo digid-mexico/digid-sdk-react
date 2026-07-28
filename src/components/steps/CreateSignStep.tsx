@@ -49,7 +49,7 @@ export function CreateSignStep() {
       <p>{s.createSign.hint}</p>
 
       {useExisting && existing ? (
-        <img src={`data:image/jpeg;base64,${existing}`} alt="Mi firma" />
+        <img className="digid-sign-saved" src={`data:image/jpeg;base64,${existing}`} alt="Mi firma" />
       ) : (
         <SignaturePad
           padRef={padRef}

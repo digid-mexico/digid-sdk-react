@@ -496,15 +496,15 @@ describe('IdCaptureStep', () => {
     expect(ctx.api.saveFile).toHaveBeenCalledTimes(2);
   });
 
-  it('no muestra el Stepper del SDK en ninguna vista (más espacio para la captura)', () => {
+  it('muestra el Stepper en instrucción y preview (CSS lo oculta en móvil)', () => {
     const { container: withoutExisting } = renderStep(<IdCaptureStep side="front" />, makeCtx());
-    expect(withoutExisting.querySelector('.digid-stepper')).not.toBeInTheDocument();
+    expect(withoutExisting.querySelector('.digid-stepper')).toBeInTheDocument();
 
     const { container: withExisting } = renderStep(<IdCaptureStep side="front" />, makeCtx({
       asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
         files: { idFront: 'QUJD', idBack: null, sign: null, selfie: null } },
     }));
-    expect(withExisting.querySelector('.digid-stepper')).not.toBeInTheDocument();
+    expect(withExisting.querySelector('.digid-stepper')).toBeInTheDocument();
   });
 });
 
@@ -706,19 +706,27 @@ describe('SelfieStep', () => {
     expect(ctx.api.saveFile).toHaveBeenCalledTimes(2);
   });
 
-  it('no muestra el Stepper del SDK en ninguna vista (más espacio para la captura)', () => {
+  it('muestra el Stepper en instrucción y preview (CSS lo oculta en móvil)', () => {
     const { container: withoutExisting } = renderStep(<SelfieStep />, makeCtx());
-    expect(withoutExisting.querySelector('.digid-stepper')).not.toBeInTheDocument();
+    expect(withoutExisting.querySelector('.digid-stepper')).toBeInTheDocument();
 
     const { container: withExisting } = renderStep(<SelfieStep />, makeCtx({
       asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
         files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
     }));
-    expect(withExisting.querySelector('.digid-stepper')).not.toBeInTheDocument();
+    expect(withExisting.querySelector('.digid-stepper')).toBeInTheDocument();
   });
 });
 
 describe('CreateSignStep', () => {
+  it('la firma guardada se contiene en el ancho del paso (clase digid-sign-saved)', () => {
+    renderStep(<CreateSignStep />, makeCtx({
+      asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
+        files: { idFront: null, idBack: null, sign: 'QUJD', selfie: null } },
+    }));
+    expect(screen.getByAltText('Mi firma')).toHaveClass('digid-sign-saved');
+  });
+
   it('Continuar deshabilitado hasta dibujar', () => {
     const ctx = makeCtx();
     renderStep(<CreateSignStep />, ctx);

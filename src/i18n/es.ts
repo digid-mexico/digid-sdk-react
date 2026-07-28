@@ -135,7 +135,7 @@ export const es = {
     cancel: 'Cancelar',
   },
   createSign: {
-    title: 'Valida tu información',
+    title: 'Capturar firma',
     heading: '¡Llegó el momento de firmar!',
     hint: 'Dibuje su firma en el pizarrón y asegúrese de que coincida con la de su identificación.',
     clear: 'Limpiar',

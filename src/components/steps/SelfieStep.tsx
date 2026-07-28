@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useFlow } from '../../core/FlowContext';
 import { useStrings } from '../../i18n';
 import { Button } from '../ui/Button';
+import { Stepper } from '../ui/Stepper';
 import { GuidedCameraCapture } from '../camera/GuidedCameraCapture';
 import { SelfieInstruction } from '../scan/SelfieInstruction';
 import { ScanPreviewLayout } from '../scan/ScanPreviewLayout';
@@ -156,6 +157,8 @@ export function SelfieStep() {
 
   return (
     <section aria-label={s.selfie.title}>
+      {/* Visible solo en escritorio (CSS lo oculta en móvil) */}
+      <Stepper steps={s.steps} active={0} />
       {view === 'instruction' ? (
         <div
           onDragOver={(e) => e.preventDefault()}

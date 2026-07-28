@@ -80,6 +80,23 @@
 }
 .digid-signature-canvas { width: 100%; height: 280px; touch-action: none;
   border: 1px solid var(--digid-border); border-radius: var(--digid-radius); }
+/* Firma guardada previamente: SIEMPRE contenida en el ancho del paso (el PNG
+   del lienzo puede medir >1500px a resolución nativa y desbordaba). */
+.digid-sign-saved {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--digid-border);
+  border-radius: var(--digid-radius);
+  padding: 8px;
+  background: #fff;
+  box-sizing: border-box;
+}
+/* El Stepper orienta en escritorio; en móvil se oculta para ceder espacio a
+   la captura/firma (pedido 2026-07-28). */
+@media (max-width: 767px) {
+  .digid-stepper { display: none; }
+}
 .digid-camera video, .digid-camera canvas, .digid-camera img { max-width: 100%; border-radius: var(--digid-radius); }
 
 /* --- Captura guiada (marco + detección automática, Task 21) --- */

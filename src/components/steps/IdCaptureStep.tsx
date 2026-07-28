@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useFlow } from '../../core/FlowContext';
 import { useStrings } from '../../i18n';
 import { Button } from '../ui/Button';
+import { Stepper } from '../ui/Stepper';
 import { ScanInstruction } from '../scan/ScanInstruction';
 import { DocScanCapture } from '../scan/DocScanCapture';
 import { ScanPreviewLayout } from '../scan/ScanPreviewLayout';
@@ -147,6 +148,8 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
 
   return (
     <section aria-label={side === 'front' ? s.idCapture.frontTitle : s.idCapture.backTitle}>
+      {/* Visible solo en escritorio (CSS lo oculta en móvil) */}
+      <Stepper steps={s.steps} active={0} />
       {view === 'instruction' ? (
         <div
           onDragOver={(e) => e.preventDefault()}
