@@ -77,7 +77,7 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
 ## Desarrollo
 
     npm install
-    npm test            # vitest (103 tests)
+    npm test            # vitest (122 tests)
     npm run typecheck
     npm run build       # tsup → dist/
     npm run dev         # playground en http://localhost:5199/?token=<token>
@@ -91,7 +91,12 @@ El playground hace proxy de /api, /storage y /docments a http://127.0.0.1:8000
   `file` (no `webCamera`), confirmado contra `AsignadoController::saveSignatoryFile`
   (~línea 666), que en esa rama solo lee `file`. Los pasos de INE siguen mandando el
   dataURL en `webCamera`, como el flujo legacy.
-- Paridad visual del tamaño de overlay de firmas (fijo 100×50 vs legacy responsivo).
+- El tamaño del overlay de previsualización de firma se calcula matemáticamente a
+  partir del rectángulo de 37×24mm físicos que el backend estampa sobre el PDF
+  final (`SignatureNotificationService`, FPDI/FPDF), usando las dimensiones
+  físicas reales de cada página (`PageInfo.widthPt`/`heightPt`): coincide con lo
+  estampado a cualquier zoom o tamaño de contenedor, sin depender de verificación
+  visual contra el legacy.
 - Confirmar que `/docments/verarchivo/{id}` funciona para firmantes externos en un
   origen cross-origin (dominio del integrador distinto al del backend Digid).
 - Confirmar con un token real cuál id se usa para las rutas de storage del cliente
