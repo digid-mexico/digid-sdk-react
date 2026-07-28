@@ -1,6 +1,6 @@
 # Guía de integración — SDK de Firma Autógrafa de Digid
 
-`@digid/firma-autografa-react` · v0.5.0
+`@digid/firma-autografa-react` · v0.6.0
 
 Esta guía está dirigida a equipos de desarrollo que quieren integrar el proceso de
 **firma autógrafa de Digid** dentro de su propia aplicación web, sin redirigir a sus
@@ -17,9 +17,9 @@ el mismo proceso certificado que ofrece Digid:
 | Paso | Pantalla | Descripción |
 |---|---|---|
 | 1 | **Revisión del documento** | El firmante ve el PDF a firmar, puede descargarlo y acepta términos y condiciones. Si el documento requiere verificación de identidad, se muestra el aviso de consentimiento KYC. El visor incluye controles de zoom (50%–300%) y navegación rápida entre páginas. |
-| 2 | **Identificación (frente)** | Captura de la parte frontal de la identificación oficial (INE) con la cámara del dispositivo, o subiendo un archivo JPEG/PNG. |
-| 3 | **Identificación (reverso)** | Igual que el paso anterior, para el reverso. |
-| 4 | **Selfie** | El firmante se toma una selfie con la cámara frontal del dispositivo, o sube un archivo JPEG/PNG. |
+| 2 | **Identificación (frente)** | La cámara del dispositivo se abre con un marco guía (proporción de una credencial) superpuesto: en cuanto el SDK detecta —en el propio dispositivo— la fotografía de la identificación bien encuadrada y nítida dentro del marco, cuenta regresiva y captura sola. También se puede capturar manualmente en cualquier momento con el botón de la cámara, o subir un archivo JPEG/PNG. |
+| 3 | **Identificación (reverso)** | Mismo marco guía; en este paso el SDK busca el código (QR/PDF417) del reverso para disparar la captura automática. Igual que en el paso anterior, la captura manual y la carga de archivo siempre están disponibles. |
+| 4 | **Selfie** | La cámara frontal se abre con un óvalo guía; el SDK detecta el rostro del firmante centrado y a buen tamaño dentro del óvalo para capturar automáticamente, con las mismas alternativas de captura manual o carga de archivo. |
 | 5 | **Creación de la firma** | El firmante dibuja su firma autógrafa en un lienzo táctil (funciona con dedo, stylus o mouse). |
 | 6 | **Colocación de firmas** | El firmante confirma una por una las posiciones de su firma sobre el documento, viéndolas superpuestas en el PDF real. La previsualización muestra la posición y el tamaño exactos con los que quedará estampada en el documento final (37×24mm físicos). |
 | 7 | **Confirmación** | Pantalla de éxito. El documento queda firmado en Digid y tu aplicación recibe el callback `onComplete`. |
@@ -43,8 +43,10 @@ el mismo proceso certificado que ofrece Digid:
 > `Data.repre` en la respuesta de `start_autografa`.
 
 Todo el estado del proceso vive en memoria del navegador: el SDK no usa
-`localStorage` ni `sessionStorage`, no carga scripts de terceros en tiempo de
-ejecución, y apaga la cámara en cuanto termina de usarla.
+`localStorage` ni `sessionStorage`, y apaga la cámara en cuanto termina de usarla.
+La única carga de recursos externos en tiempo de ejecución es la de los modelos de
+detección on-device usados para la captura automática (ver [sección 1.2](#12-captura-automática));
+el SDK en sí no carga scripts de analítica, publicidad ni de ningún otro tipo.
 
 ### 1.1 Limitaciones
 
@@ -52,6 +54,54 @@ Los documentos configurados en Digid con verificación de identidad/rostro a tra
 del proveedor de KYC alojado (liveness) **no están soportados todavía** por este SDK;
 ese flujo sigue disponible únicamente en la aplicación web legacy de Digid. Soporte
 para este caso está planeado para una versión futura del SDK.
+
+### 1.2 Captura automática
+
+En los pasos de identificación y selfie, el SDK intenta **detectar automáticamente**
+cuándo el documento o el rostro del firmante están bien encuadrados y nítidos dentro
+del marco guía, y dispara la captura sin que el firmante tenga que presionar ningún
+botón (tras una breve cuenta regresiva, para darle tiempo de reaccionar). Esta
+detección corre **enteramente en el dispositivo del firmante**: los frames de video
+analizados nunca salen del navegador ni se envían a Digid ni a ningún tercero; solo
+la imagen final ya capturada (igual que en el resto del flujo) se sube al backend.
+
+Para lograr esto, el SDK carga de forma perezosa (solo cuando el firmante llega a un
+paso con cámara) dos modelos de detección de código abierto:
+
+- Detección de rostro ([MediaPipe Tasks Vision](https://developers.google.com/mediapipe)), usada en el frente de la INE y en la selfie.
+- Lectura de código QR/PDF417 ([zxing-wasm](https://github.com/Sec-ant/zxing-wasm)), usada en el reverso de la INE.
+
+Ambos se apoyan en WebAssembly y pesan, entre los dos, **aproximadamente 4.5 MB**
+adicionales que se descargan la primera vez que el firmante abre la cámara (no al
+cargar el bundle del SDK). Por default se sirven desde CDNs públicos
+(`cdn.jsdelivr.net` para el WASM de MediaPipe, `storage.googleapis.com` para su
+modelo de rostro, y jsDelivr también para `zxing-wasm`).
+
+Si tu política de seguridad no permite depender de CDNs de terceros, puedes
+autoalojar estos archivos y apuntar el SDK a tus propias URLs con la prop
+`detectionAssets`:
+
+```tsx
+<FirmaAutografa
+  token={token}
+  baseUrl="https://digidmexico.com.mx"
+  detectionAssets={{
+    mediapipeWasmUrl: 'https://tu-cdn.example.com/mediapipe/wasm',
+    faceModelUrl: 'https://tu-cdn.example.com/mediapipe/blaze_face_short_range.tflite',
+    zxingWasmUrl: 'https://tu-cdn.example.com/zxing',
+  }}
+/>
+```
+
+Los tres campos son opcionales e independientes entre sí (puedes autoalojar solo
+uno). Si tu CSP restringe `connect-src`/`script-src`, revisa las directivas
+adicionales necesarias en la [sección 10.3](#103-content-security-policy-csp).
+
+**La captura automática nunca es obligatoria.** Si el dispositivo no soporta la
+detección (navegador antiguo, WASM deshabilitado, fallo de red al descargar los
+modelos, etc.), el SDK lo detecta y muestra un aviso indicándolo, pero el firmante
+siempre puede capturar manualmente con el botón de la cámara — el flujo de firma
+nunca se bloquea por esto.
 
 ---
 
@@ -199,6 +249,7 @@ export function Firmador({ token }: { token: string }) {
 | `baseUrl` | `string` | — | `''` (mismo origen) | Origen del backend de Digid, `https://digidmexico.com.mx` (producción) o `https://pruebas.digidmexico.com.mx` (pruebas). Si tu app corre en un dominio distinto, es obligatorio y tu dominio debe estar habilitado en CORS. |
 | `theme` | `DigidTheme` | — | — | Colores de tu marca (ver [sección 8](#8-personalización-visual)). Los estilos que tu cuenta tenga configurados en Digid tienen prioridad sobre esta prop. |
 | `termsUrl` | `string` | — | T&C de Digid | URL de los términos y condiciones que se enlazan en el paso 1. |
+| `detectionAssets` | `DetectionAssets` | — | CDNs públicos | URLs propias para autoalojar los modelos de detección de la captura automática (ver [sección 1.2](#12-captura-automática)). |
 | `onComplete` | `() => void` | — | — | El firmante completó todo el proceso; el documento quedó firmado. |
 | `onExit` | `(reason: string) => void` | — | — | El proceso terminó sin firmar. Ver razones abajo. |
 | `onError` | `(error: Error) => void` | — | — | Error irrecuperable (token inválido, fallo de red, respuesta inesperada). |
@@ -341,8 +392,8 @@ mensaje indicando exactamente esto.
 
 ### 10.3 Content Security Policy (CSP)
 
-El SDK no carga scripts externos, así que funciona con CSP estricta. Asegúrate de
-permitir:
+El SDK no carga scripts de terceros propios, así que funciona con CSP estricta.
+Asegúrate de permitir:
 
 ```
 connect-src https://digidmexico.com.mx;   (o pruebas.digidmexico.com.mx según el ambiente)
@@ -350,6 +401,22 @@ img-src     'self' data: blob: https://digidmexico.com.mx;
 worker-src  'self' blob:;               (worker de pdf.js)
 media-src   'self' blob:;               (previsualización de cámara)
 ```
+
+**Si usas la captura automática con sus proveedores por default** (ver
+[sección 1.2](#12-captura-automática)), agrega además los orígenes de los modelos
+de detección y `'wasm-unsafe-eval'` (requerido por los navegadores para instanciar
+WebAssembly compilado dinámicamente, como el de MediaPipe/zxing-wasm):
+
+```
+script-src  'wasm-unsafe-eval' https://cdn.jsdelivr.net https://storage.googleapis.com;
+connect-src https://cdn.jsdelivr.net https://storage.googleapis.com;  (además de lo anterior)
+```
+
+Si en cambio autoalojas los assets vía `detectionAssets`, sustituye esos dos
+orígenes por el(los) tuyo(s) propio(s) — no necesitas permitir jsDelivr/Google
+Storage en absoluto. Y si tu CSP no puede modificarse para permitir ninguno de los
+dos, no pasa nada: al no poder cargar los modelos, el SDK cae automáticamente a
+captura manual (ver sección 1.2) sin romper el resto del flujo.
 
 ---
 
@@ -386,4 +453,4 @@ media-src   'self' blob:;               (previsualización de cámara)
 
 ---
 
-*Digid — plataforma de firma digital. Esta guía corresponde a la versión 0.3.0 del SDK.*
+*Digid — plataforma de firma digital. Esta guía corresponde a la versión 0.6.0 del SDK.*

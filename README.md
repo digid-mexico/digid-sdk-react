@@ -37,6 +37,12 @@ la pantalla de revisión, sin las pantallas de identificación/selfie. El conten
 revisión, el visor de PDF incluye controles de zoom (50%–300%) y navegación rápida entre
 páginas.
 
+En los pasos de INE y selfie, la cámara muestra un marco guía y captura automáticamente en
+cuanto detecta —en el propio dispositivo, sin enviar nada a ningún servidor— el documento o
+rostro bien encuadrado y nítido; la captura manual con archivo o botón siempre está
+disponible como alternativa. Ver la [guía de integración](docs/GUIA-INTEGRACION.md#12-captura-automática)
+para el detalle de assets, `detectionAssets` y CSP.
+
 ### Props
 
 | Prop | Tipo | Descripción |
@@ -45,6 +51,7 @@ páginas.
 | baseUrl | string | Origen del backend Digid (default: mismo origen) |
 | theme | DigidTheme | Colores opcionales; los estilos del cliente configurados en Digid tienen prioridad |
 | termsUrl | string | URL de términos y condiciones |
+| detectionAssets | DetectionAssets | URLs propias para autoalojar los modelos de detección de la captura automática (default: CDNs públicos) |
 | onComplete | () => void | Proceso terminado con éxito |
 | onExit | (reason: string) => void | El firmante salió sin completar |
 | onError | (error: Error) => void | Error irrecuperable (token inválido, red) |
@@ -71,13 +78,16 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
 - Las imágenes se validan por magic bytes, se limitan a 10 MB y se re-encodean
   a JPEG (se eliminan metadatos EXIF, incluido GPS).
 - La cámara se apaga en cuanto se captura o se desmonta el componente.
-- Sin scripts de terceros en runtime (pdf.js va empaquetado como dependencia).
+- Sin scripts de terceros en runtime (pdf.js va empaquetado como dependencia); la captura
+  automática carga de forma perezosa (solo al abrir la cámara) modelos de detección on-device
+  para rostro/código de barras — el análisis corre enteramente en el navegador, nunca se
+  envían frames de video a Digid ni a terceros (ver la guía de integración para detalle y CSP).
 - Los colores de marca del backend se validan (solo hex) antes de inyectarse como CSS variables.
 
 ## Desarrollo
 
     npm install
-    npm test            # vitest (122 tests)
+    npm test            # vitest (183 tests)
     npm run typecheck
     npm run build       # tsup → dist/
     npm run dev         # playground en http://localhost:5199/?token=<token>
