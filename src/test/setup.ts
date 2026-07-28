@@ -56,3 +56,49 @@ if (typeof URL !== 'undefined' && !URL.revokeObjectURL) {
 if (typeof Element !== 'undefined' && !Element.prototype.scrollTo) {
   Element.prototype.scrollTo = () => {};
 }
+
+// jsdom no implementa el constructor global ImageData (usado por las
+// utilidades de nitidez y detección en src/detection). Polyfill mínimo:
+// soporta `new ImageData(width, height)` y `new ImageData(data, width, height?)`.
+if (typeof globalThis.ImageData === 'undefined') {
+  class ImageDataPolyfill {
+    data: Uint8ClampedArray;
+    width: number;
+    height: number;
+    colorSpace: PredefinedColorSpace = 'srgb';
+
+    constructor(dataOrWidth: Uint8ClampedArray | number, widthOrHeight: number, height?: number) {
+      if (dataOrWidth instanceof Uint8ClampedArray) {
+        this.data = dataOrWidth;
+        this.width = widthOrHeight;
+        this.height = height ?? dataOrWidth.length / (4 * widthOrHeight);
+      } else {
+        this.width = dataOrWidth;
+        this.height = widthOrHeight;
+        this.data = new Uint8ClampedArray(this.width * this.height * 4);
+      }
+    }
+  }
+  (globalThis as unknown as { ImageData: unknown }).ImageData = ImageDataPolyfill;
+}
+
+// Extiende el stub de contexto 2d de canvas (definido arriba) con
+// getImageData, usado por useAutoCapture para muestrear el frame de video.
+// El contenido no importa para esos tests (la nitidez real se cubre en
+// sharpness.test.ts y se mockea en useAutoCapture.test.ts); basta un
+// ImageData mínimo del tamaño pedido.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  const originalGetContext = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: unknown[]) {
+    const ctx = (originalGetContext as (...a: unknown[]) => unknown).apply(this, args as never);
+    if (ctx && typeof (ctx as { getImageData?: unknown }).getImageData === 'undefined') {
+      (ctx as { getImageData: (x: number, y: number, w: number, h: number) => ImageData }).getImageData = (
+        _x: number,
+        _y: number,
+        w: number,
+        h: number,
+      ) => new ImageData(Math.max(1, w), Math.max(1, h));
+    }
+    return ctx;
+  } as never;
+}
