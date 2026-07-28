@@ -43,6 +43,13 @@ rostro bien encuadrado y nítido; la captura manual con archivo o botón siempre
 disponible como alternativa. Ver la [guía de integración](docs/GUIA-INTEGRACION.md#12-captura-automática)
 para el detalle de assets, `detectionAssets` y CSP.
 
+El paquete también incluye, como infraestructura interna aún sin activar en la UI, un
+núcleo de escaneo/recorte de documentos con OpenCV (`scan-assets/`, ver la
+[guía de integración](docs/GUIA-INTEGRACION.md#13-escaneo-de-documentos-assets)): a
+diferencia de los modelos de la sección anterior, el Web Worker que lo usa exige
+mismo origen (no puede cargarse desde un CDN), así que cuando se active deberás copiar
+esa carpeta a tu directorio de estáticos.
+
 ### Props
 
 | Prop | Tipo | Descripción |
@@ -52,6 +59,7 @@ para el detalle de assets, `detectionAssets` y CSP.
 | theme | DigidTheme | Colores opcionales; los estilos del cliente configurados en Digid tienen prioridad |
 | termsUrl | string | URL de términos y condiciones |
 | detectionAssets | DetectionAssets | URLs propias para autoalojar los modelos de detección de la captura automática (default: CDNs públicos) |
+| scanAssets | ScanAssets | URL propia del worker de escaneo OpenCV (default: `/digid-scan/scan-worker.js`); infraestructura interna, aún sin consumir desde la UI |
 | onComplete | () => void | Proceso terminado con éxito |
 | onExit | (reason: string) => void | El firmante salió sin completar |
 | onError | (error: Error) => void | Error irrecuperable (token inválido, red) |
@@ -87,7 +95,7 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
 ## Desarrollo
 
     npm install
-    npm test            # vitest (183 tests)
+    npm test            # vitest (317 tests)
     npm run typecheck
     npm run build       # tsup → dist/
     npm run dev         # playground en http://localhost:5199/?token=<token>

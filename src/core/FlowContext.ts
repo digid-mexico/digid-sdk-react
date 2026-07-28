@@ -3,6 +3,7 @@ import type { ApiClient } from '../api/client';
 import type { FlowAction, FlowState } from './flowReducer';
 import type { AsignadoData } from '../types/api';
 import type { DetectionAssets } from '../detection/types';
+import type { ScanAssets } from '../scan/types';
 
 export interface FlowContextValue {
   api: ApiClient;
@@ -15,6 +16,8 @@ export interface FlowContextValue {
   termsUrl: string;
   /** URLs configurables para los detectores on-device (MediaPipe/zxing); ver Task 21. */
   detectionAssets?: DetectionAssets;
+  /** URL configurable del worker de escaneo OpenCV (núcleo portado en Task 22; aún sin consumir desde los steps). */
+  scanAssets?: ScanAssets;
 }
 
 export const FlowContext = createContext<FlowContextValue | null>(null);

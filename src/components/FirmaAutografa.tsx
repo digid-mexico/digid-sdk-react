@@ -4,6 +4,7 @@ import { FlowContext } from '../core/FlowContext';
 import { useAutografaFlow } from '../core/useAutografaFlow';
 import { ThemeProvider, sanitizeColor, type DigidTheme } from '../theme/ThemeProvider';
 import type { DetectionAssets } from '../detection/types';
+import type { ScanAssets } from '../scan/types';
 import { disposeFaceDetector } from '../detection/faceDetector';
 import { disposeBarcodeDetector } from '../detection/barcodeDetector';
 import { I18nProvider, es } from '../i18n';
@@ -23,6 +24,8 @@ export interface FirmaAutografaProps {
   termsUrl?: string;
   /** URLs configurables para los detectores on-device de auto-captura (MediaPipe/zxing). */
   detectionAssets?: DetectionAssets;
+  /** URL configurable del worker de escaneo OpenCV (núcleo portado en Task 22; aún sin consumir desde los steps). */
+  scanAssets?: ScanAssets;
   onComplete?: () => void;
   onExit?: (reason: string) => void;
   onError?: (error: Error) => void;
@@ -30,7 +33,7 @@ export interface FirmaAutografaProps {
 
 export function FirmaAutografa({
   token, baseUrl = '', theme, termsUrl = 'https://www.digid.com.mx/terminos-condiciones',
-  detectionAssets, onComplete, onExit, onError,
+  detectionAssets, scanAssets, onComplete, onExit, onError,
 }: FirmaAutografaProps) {
   const api = useMemo(() => new ApiClient({ baseUrl, token }), [baseUrl, token]);
   const { state, dispatch, asignado, refreshAsignado } = useAutografaFlow(api);
@@ -80,8 +83,8 @@ export function FirmaAutografa({
   }, [state.step, state.error, state.exitReason]); // eslint-disable-line react-hooks/exhaustive-deps -- onComplete/onExit/onError intencionalmente fuera: no deben reejecutar el efecto si el consumidor pasa una nueva referencia en cada render
 
   const flowContextValue = useMemo(
-    () => ({ api, state, dispatch, asignado, refreshAsignado, notify, setBusy, termsUrl, detectionAssets }),
-    [api, state, asignado, refreshAsignado, notify, termsUrl, detectionAssets],
+    () => ({ api, state, dispatch, asignado, refreshAsignado, notify, setBusy, termsUrl, detectionAssets, scanAssets }),
+    [api, state, asignado, refreshAsignado, notify, termsUrl, detectionAssets, scanAssets],
   );
 
   return (

@@ -38,6 +38,7 @@
     "./styles.css": "./dist/styles.css"
   },
   "files": [
+    "scan-assets",
     "dist"
   ],
   "sideEffects": [

@@ -103,6 +103,47 @@ modelos, etc.), el SDK lo detecta y muestra un aviso indicándolo, pero el firma
 siempre puede capturar manualmente con el botón de la cámara — el flujo de firma
 nunca se bloquea por esto.
 
+### 1.3 Escaneo de documentos (assets)
+
+> **Infraestructura interna, aún no activa en ningún paso de la UI.** Esta sección
+> documenta un núcleo de escaneo/recorte de documentos basado en OpenCV que el SDK
+> empaqueta como preparación para un rediseño futuro de la captura de INE (contorno,
+> recorte de perspectiva y métricas de nitidez/exposición más precisas que la
+> detección actual). Hoy los pasos de identificación siguen funcionando exactamente
+> igual que en la [sección 1.2](#12-captura-automática) (MediaPipe/zxing); nada de lo
+> descrito aquí cambia su comportamiento todavía.
+
+El paquete incluye, bajo `scan-assets/`, un Web Worker (`scan-worker.js`) y el build
+WebAssembly de OpenCV que ese worker carga (`opencv.js`, ~9 MB). El worker corre en
+un hilo aparte porque compilar/ejecutar ese WASM en el hilo principal congelaría la
+UI; `opencv.js` solo se descarga de forma perezosa **dentro del worker**, y solo
+cuando el firmante llegue a una pantalla que lo use — nunca al cargar el bundle del
+SDK.
+
+Cuando este núcleo se active (próxima versión), necesitarás servir esos dos archivos
+en tu propio origen. Los Web Workers no pueden cargarse desde un CDN cross-origin
+(a diferencia de MediaPipe/zxing), así que copia la carpeta completa a tu directorio
+de estáticos:
+
+```bash
+cp -R node_modules/@digid/firma-autografa-react/scan-assets public/digid-scan
+```
+
+Por default el SDK busca el worker en `/digid-scan/scan-worker.js`. Si tu proyecto
+sirve estáticos desde otra ruta, pásasela vía la prop `scanAssets`:
+
+```tsx
+<FirmaAutografa
+  token={token}
+  baseUrl="https://digidmexico.com.mx"
+  scanAssets={{ workerUrl: '/assets/digid-scan/scan-worker.js' }}
+/>
+```
+
+`scan-worker.js` carga `opencv.js` con una ruta relativa a su propia URL
+(`./opencv.js`), así que basta con que ambos archivos queden en la misma carpeta —
+no hace falta configurar la URL de `opencv.js` por separado.
+
 ---
 
 ## 2. Ambientes
@@ -250,6 +291,7 @@ export function Firmador({ token }: { token: string }) {
 | `theme` | `DigidTheme` | — | — | Colores de tu marca (ver [sección 8](#8-personalización-visual)). Los estilos que tu cuenta tenga configurados en Digid tienen prioridad sobre esta prop. |
 | `termsUrl` | `string` | — | T&C de Digid | URL de los términos y condiciones que se enlazan en el paso 1. |
 | `detectionAssets` | `DetectionAssets` | — | CDNs públicos | URLs propias para autoalojar los modelos de detección de la captura automática (ver [sección 1.2](#12-captura-automática)). |
+| `scanAssets` | `ScanAssets` | — | `/digid-scan/scan-worker.js` | URL propia del worker de escaneo OpenCV (ver [sección 1.3](#13-escaneo-de-documentos-assets)). Infraestructura interna todavía sin consumir desde ningún paso de la UI. |
 | `onComplete` | `() => void` | — | — | El firmante completó todo el proceso; el documento quedó firmado. |
 | `onExit` | `(reason: string) => void` | — | — | El proceso terminó sin firmar. Ver razones abajo. |
 | `onError` | `(error: Error) => void` | — | — | Error irrecuperable (token inválido, fallo de red, respuesta inesperada). |

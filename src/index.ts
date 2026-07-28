@@ -32,3 +32,28 @@ export { createFaceFrameDetector, disposeFaceDetector } from './detection/faceDe
 export { createBarcodeFrameDetector, disposeBarcodeDetector } from './detection/barcodeDetector';
 export { useAutoCapture } from './detection/useAutoCapture';
 export type { AutoCaptureStatus, AutoCaptureOptions, AutoCaptureState } from './detection/useAutoCapture';
+
+// Núcleo de escaneo OpenCV portado del prototipo KYC (Task 22): worker client,
+// veredicto de calidad, guía de encuadre y geometría del marco guiado. La UI
+// de captura (steps/GuidedCameraCapture) todavía NO lo consume — queda para
+// el siguiente task.
+export {
+  initDocScan, docScanReady, detectDocument, detectDocumentStill, assessDocQuality, extractDocument,
+  qualityVerdict, isWashOnlyReject, extremeBlur, frameGuidance, createDetectionConfirmer,
+  cornerMovement, scaleCorners, mapCornersToDisplay, quadArea, quadSize, quadAspect,
+  planStillDetectAttempts, portraitToLandscape, orientationFlipNeeded, orientDocumentForStep,
+  CONFIRM_FRAMES, CONFIRM_MOVEMENT, WASH_VALVE_CAP, EXTREME_BLUR_SHARPNESS, EXTREME_BLUR_RATIO,
+} from './scan/docscan';
+export type { DetectionConfirmer } from './scan/docscan';
+export {
+  marcoDisplayRect, displayRectToFrame, marcoFrameRect, frameRectToDisplay, roiFromMarco,
+  rectToRoiCanvas, roiCornersToFrame, scaleRect, validateQuadInMarco, marcoGuidance,
+  MARCO_ASPECT, MARCO_WIDTH_FRAC, MARCO_WIDTH_FRAC_DESKTOP, MARCO_MAX_HEIGHT_FRAC,
+  ROI_MARGIN_FRAC, MARCO_MIN_COVERAGE, MARCO_CONTAINED_COVERAGE, MARCO_NOQUAD_TIP_TICKS,
+} from './scan/marco';
+export type {
+  Point, Corners, Rect, FrameStats, DetectDocumentResult, StillDetectDocumentResult,
+  QualityMetrics, QualityVerdict, QualityAssessment, StillDetectAttempt, GuidanceMessage,
+  MarcoValidation, ScanAssets,
+} from './scan/types';
+export { isIOS, shouldMirrorPreview, isMobileDeviceUA } from './utils/device';
