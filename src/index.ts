@@ -18,3 +18,15 @@ export { PlaceSignaturesStep } from './components/steps/PlaceSignaturesStep';
 export { CompletedStep } from './components/steps/CompletedStep';
 export { PdfViewer } from './components/pdf/PdfViewer';
 export { SignaturePad } from './components/signature/SignaturePad';
+
+// Infraestructura de detección on-device para captura guiada (Task 21 la
+// consume desde las UIs de INE/selfie).
+export { laplacianVariance, isSharp, SHARPNESS_MIN } from './detection/sharpness';
+export type {
+  NormalizedBox, DetectionResult, FrameDetector, DetectionAssets,
+} from './detection/types';
+export { DetectionUnavailableError } from './detection/errors';
+export { createFaceFrameDetector, disposeFaceDetector } from './detection/faceDetector';
+export { createBarcodeFrameDetector, disposeBarcodeDetector } from './detection/barcodeDetector';
+export { useAutoCapture } from './detection/useAutoCapture';
+export type { AutoCaptureStatus, AutoCaptureOptions, AutoCaptureState } from './detection/useAutoCapture';

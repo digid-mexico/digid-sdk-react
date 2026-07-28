@@ -2,6 +2,7 @@ import { createContext, useContext, type Dispatch } from 'react';
 import type { ApiClient } from '../api/client';
 import type { FlowAction, FlowState } from './flowReducer';
 import type { AsignadoData } from '../types/api';
+import type { DetectionAssets } from '../detection/types';
 
 export interface FlowContextValue {
   api: ApiClient;
@@ -12,6 +13,8 @@ export interface FlowContextValue {
   notify: (kind: 'success' | 'error' | 'warning', message: string) => void;
   setBusy: (busy: boolean) => void;
   termsUrl: string;
+  /** URLs configurables para los detectores on-device (MediaPipe/zxing); ver Task 21. */
+  detectionAssets?: DetectionAssets;
 }
 
 export const FlowContext = createContext<FlowContextValue | null>(null);

@@ -29,7 +29,11 @@
     "dev": "vite --config playground/vite.config.ts"
   },
   "peerDependencies": { "react": ">=18", "react-dom": ">=18" },
-  "dependencies": { "pdfjs-dist": "^4.5.136" },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.0",
+    "pdfjs-dist": "^4.5.136",
+    "zxing-wasm": "^3.1.2"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.0",
     "@testing-library/react": "^16.0.0",
