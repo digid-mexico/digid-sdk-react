@@ -214,6 +214,56 @@
   margin-bottom: 20px;
 }
 
+/* Óvalo biométrico de la instrucción de selfie (Task 24, port de .bio-target
+   del prototipo KYC): mismas proporciones que .digid-scan__id-icon pero con
+   anillo animado en vez de ilustración estática. */
+.digid-scan__bio-icon {
+  position: relative;
+  width: 116px;
+  height: 142px;
+  max-width: 42%;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--digid-primary) 30%, transparent));
+}
+.digid-scan__bio-icon svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.digid-scan__bio-ring-track {
+  fill: color-mix(in srgb, var(--digid-primary) 6%, white);
+  stroke: var(--digid-border);
+  stroke-width: 1.5;
+}
+.digid-scan__bio-ring {
+  fill: none;
+  stroke: var(--digid-primary);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 46 297; /* arco corto sobre perímetro ~343 */
+  animation: digid-scan-bio-orbit 2.6s linear infinite;
+}
+@keyframes digid-scan-bio-orbit {
+  to { stroke-dashoffset: -343; }
+}
+.digid-scan__bio-face {
+  fill: none;
+  stroke: color-mix(in srgb, var(--digid-dark) 28%, transparent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.digid-scan__bio-scanline {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 16%;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--digid-primary) 85%, transparent), transparent);
+  animation: digid-scan-bio-scan 2.2s ease-in-out infinite alternate;
+}
+@keyframes digid-scan-bio-scan {
+  from { transform: translateY(0); opacity: .25; }
+  50% { opacity: 1; }
+  to { transform: translateY(96px); opacity: .25; }
+}
+
 .digid-scan__eyebrow {
   margin: 0 0 10px;
   color: var(--digid-primary);
@@ -631,4 +681,29 @@
 
 @media (prefers-reduced-motion: reduce) {
   .digid-scan__tips-sheet, .digid-scan__sheet-veil, .digid-scan__marco-frame { transition: none; }
+  .digid-scan__bio-ring, .digid-scan__bio-scanline { animation: none; }
+}
+
+/* ============================================================
+   Chrome "scan" de GuidedCameraCapture (Task 24): el stage de la selfie
+   reutiliza el mismo full-bleed navy + badge de vidrio + obturador aqua del
+   escáner de INE (Task 23) en vez del <p role=status> gris plano y el botón
+   📷 del chrome "plain" original (que sigue existiendo para uso fuera de
+   este SDK / retrocompatibilidad). El óvalo guía (.digid-guided-camera__mask)
+   no cambia: ya comparte estética con el marco de INE.
+   ============================================================ */
+.digid-guided-camera--scan .digid-scan__stage {
+  min-height: 0;
+}
+.digid-guided-camera--scan .digid-scan__stage .digid-guided-camera__stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+}
+.digid-scan__controls--center {
+  grid-template-columns: 1fr;
+  justify-items: center;
 }

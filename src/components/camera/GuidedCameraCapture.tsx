@@ -12,6 +12,15 @@ import { acceptBarcode, acceptFaceSelfie, acceptFaceSmall } from './acceptance';
 
 export type { GuideKind };
 export type DetectorKind = 'face-small' | 'face-selfie' | 'barcode' | 'none';
+/**
+ * 'plain' (default): chrome original (stage con bg #111928 recortado, status
+ * en texto gris plano, footer con botón secundario ✕ + botón manual 📷).
+ * 'scan': reutiliza el chrome del escáner de INE (Task 23) — stage full-bleed
+ * navy, cierre en la topbar, status como badge de vidrio y obturador aqua
+ * (.digid-scan__shutter) — para unificar visualmente con DocScanCapture
+ * (Task 24, selfie). El óvalo guía no cambia entre chromes.
+ */
+export type CameraChrome = 'plain' | 'scan';
 
 interface Props {
   guide: GuideKind;
@@ -23,6 +32,8 @@ interface Props {
   mirror?: boolean; // true en desktop (webcam frontal)
   /** Cámara a solicitar: trasera (INE) o frontal (selfie). Default: trasera. */
   facingMode?: 'environment' | 'user';
+  /** Estilo visual del wrapper y controles. Default: 'plain' (no rompe usos existentes). */
+  chrome?: CameraChrome;
 }
 
 const DEFAULT_VIDEO_ASPECT = 4 / 3;
@@ -83,6 +94,7 @@ export function GuidedCameraCapture({
   onCancel,
   mirror = false,
   facingMode = 'environment',
+  chrome = 'plain',
 }: Props) {
   const s = useStrings();
   // Lectura defensiva: este componente también se exporta para uso fuera de
@@ -197,96 +209,155 @@ export function GuidedCameraCapture({
 
   const ringCircumference = 2 * Math.PI * 18;
   const ringOffset = ringCircumference * (1 - auto.countdownProgress);
+  const scanChrome = chrome === 'scan';
+
+  // Contenido del stage (video + máscara SVG + anillo de cuenta regresiva):
+  // idéntico en ambos chromes — el óvalo/marco guía no cambia (Task 24).
+  const stage = (
+    <div className="digid-guided-camera__stage" style={{ aspectRatio: String(videoAspect) }}>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        onLoadedMetadata={handleVideoDimensionsChange}
+        onResize={handleVideoDimensionsChange}
+        style={mirror ? { transform: 'scaleX(-1)' } : undefined}
+      />
+      <svg
+        className="digid-guided-camera__mask"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <path fillRule="evenodd" fill="rgba(0,0,0,.5)" d={`${OUTER_PATH} ${innerPath}`} />
+        {guide === 'id' &&
+          cornerAccentPaths(gx, gy, gw, gh).map((d, i) => (
+            <path
+              key={i}
+              d={d}
+              fill="none"
+              stroke="var(--digid-primary)"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        {guide === 'face' && (
+          <ellipse
+            cx={gx + gw / 2}
+            cy={gy + gh / 2}
+            rx={gw / 2}
+            ry={gh / 2}
+            fill="none"
+            stroke="var(--digid-primary)"
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+      </svg>
+      {auto.status === 'countdown' && (
+        <svg className="digid-guided-camera__ring" viewBox="0 0 40 40" aria-hidden="true">
+          <circle cx={20} cy={20} r={18} className="digid-guided-camera__ring-track" />
+          <circle
+            cx={20}
+            cy={20}
+            r={18}
+            className="digid-guided-camera__ring-progress"
+            strokeDasharray={ringCircumference}
+            strokeDashoffset={ringOffset}
+          />
+        </svg>
+      )}
+    </div>
+  );
+
+  const countdownPct = auto.status === 'countdown' && (
+    // aria-hidden: el porcentaje cambia ~5 veces por segundo; que formara
+    // parte del texto accesible del role=status haría que el lector de
+    // pantalla lo anunciara a esa frecuencia. El anillo de progreso ya lo
+    // refleja visualmente y el texto "Capturando…" (sí anunciado) ya
+    // comunica el estado.
+    <span aria-hidden="true"> {Math.round(auto.countdownProgress * 100)}%</span>
+  );
 
   return (
-    <div className="digid-camera digid-guided-camera" data-guide={guide}>
+    <div
+      className={`digid-camera digid-guided-camera${scanChrome ? ' digid-guided-camera--scan' : ''}`}
+      data-guide={guide}
+      data-chrome={chrome}
+    >
       {preview === null ? (
-        <>
-          <div className="digid-guided-camera__stage" style={{ aspectRatio: String(videoAspect) }}>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              onLoadedMetadata={handleVideoDimensionsChange}
-              onResize={handleVideoDimensionsChange}
-              style={mirror ? { transform: 'scaleX(-1)' } : undefined}
-            />
-            <svg
-              className="digid-guided-camera__mask"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              <path fillRule="evenodd" fill="rgba(0,0,0,.5)" d={`${OUTER_PATH} ${innerPath}`} />
-              {guide === 'id' &&
-                cornerAccentPaths(gx, gy, gw, gh).map((d, i) => (
-                  <path
-                    key={i}
-                    d={d}
-                    fill="none"
-                    stroke="var(--digid-primary)"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                ))}
-              {guide === 'face' && (
-                <ellipse
-                  cx={gx + gw / 2}
-                  cy={gy + gh / 2}
-                  rx={gw / 2}
-                  ry={gh / 2}
-                  fill="none"
-                  stroke="var(--digid-primary)"
-                  strokeWidth={1}
-                  vectorEffect="non-scaling-stroke"
-                />
+        scanChrome ? (
+          <div className="digid-scan__view">
+            <div className="digid-scan__topbar">
+              {onCancel && (
+                <button
+                  type="button"
+                  className="digid-scan__action"
+                  aria-label={s.capture.cancel}
+                  onClick={() => {
+                    close();
+                    onCancel();
+                  }}
+                >
+                  ✕
+                </button>
               )}
-            </svg>
-            {auto.status === 'countdown' && (
-              <svg className="digid-guided-camera__ring" viewBox="0 0 40 40" aria-hidden="true">
-                <circle cx={20} cy={20} r={18} className="digid-guided-camera__ring-track" />
-                <circle
-                  cx={20}
-                  cy={20}
-                  r={18}
-                  className="digid-guided-camera__ring-progress"
-                  strokeDasharray={ringCircumference}
-                  strokeDashoffset={ringOffset}
-                />
-              </svg>
-            )}
-          </div>
-          <p role="status" aria-live="polite" className="digid-guided-camera__status">
-            {statusText}
-            {auto.status === 'countdown' && (
-              // aria-hidden: el porcentaje cambia ~5 veces por segundo; que
-              // formara parte del texto accesible del role=status haría que
-              // el lector de pantalla lo anunciara a esa frecuencia. El
-              // anillo de progreso ya lo refleja visualmente y el texto
-              // "Capturando…" (sí anunciado) ya comunica el estado.
-              <span aria-hidden="true"> {Math.round(auto.countdownProgress * 100)}%</span>
-            )}
-          </p>
-          <div className="digid-footer">
-            {onCancel && (
-              <Button
-                variant="secondary"
-                aria-label={s.capture.cancel}
-                onClick={() => {
-                  close();
-                  onCancel();
-                }}
+              <span className="digid-scan__action-spacer" aria-hidden="true" />
+            </div>
+            <div className="digid-scan__stage">
+              {stage}
+              <div
+                className={`digid-scan__badge${
+                  auto.status === 'holding' || auto.status === 'countdown' ? ' digid-scan__badge--good' : ''
+                }`}
+                role="status"
+                aria-live="polite"
               >
-                ✕
-              </Button>
-            )}
-            <Button onClick={capture} disabled={!stream} aria-label={s.capture.manualButton}>
-              📷
-            </Button>
+                <span className="digid-scan__badge-dot" aria-hidden="true" />
+                <span>
+                  {statusText}
+                  {countdownPct}
+                </span>
+              </div>
+              <div className="digid-scan__controls digid-scan__controls--center">
+                <button
+                  type="button"
+                  className="digid-scan__shutter"
+                  onClick={capture}
+                  disabled={!stream}
+                  aria-label={s.capture.manualButton}
+                />
+              </div>
+            </div>
           </div>
-        </>
+        ) : (
+          <>
+            {stage}
+            <p role="status" aria-live="polite" className="digid-guided-camera__status">
+              {statusText}
+              {countdownPct}
+            </p>
+            <div className="digid-footer">
+              {onCancel && (
+                <Button
+                  variant="secondary"
+                  aria-label={s.capture.cancel}
+                  onClick={() => {
+                    close();
+                    onCancel();
+                  }}
+                >
+                  ✕
+                </Button>
+              )}
+              <Button onClick={capture} disabled={!stream} aria-label={s.capture.manualButton}>
+                📷
+              </Button>
+            </div>
+          </>
+        )
       ) : (
         <>
           <img src={preview} alt="Vista previa de la captura" />

@@ -107,6 +107,29 @@ export function IneFrontIcon() {
   );
 }
 
+/**
+ * Óvalo biométrico animado (port de .bio-target/LivenessIntro.jsx del
+ * prototipo KYC): anillo que orbita + silueta de rostro tenue, recoloreado a
+ * los tokens del SDK (--digid-primary en vez de --aqua) para la pantalla de
+ * instrucción de la selfie. Puramente decorativo (aria-hidden): el título y
+ * el copy ya comunican el propósito de la pantalla.
+ */
+export function BioOvalIcon() {
+  return (
+    <div className="digid-scan__bio-icon" aria-hidden="true">
+      <svg viewBox="0 0 132 162">
+        <ellipse className="digid-scan__bio-ring-track" cx="66" cy="81" rx="46" ry="60" />
+        <ellipse className="digid-scan__bio-ring" cx="66" cy="81" rx="46" ry="60" />
+      </svg>
+      <svg className="digid-scan__bio-face" viewBox="0 0 132 162">
+        <circle cx="66" cy="66" r="20" />
+        <path d="M38 122c0-18 12.5-30 28-30s28 12 28 30" />
+      </svg>
+      <span className="digid-scan__bio-scanline" />
+    </div>
+  );
+}
+
 /** Ilustración de INE reverso (port de public/ine-reverso-icon.svg). */
 export function IneBackIcon() {
   return (

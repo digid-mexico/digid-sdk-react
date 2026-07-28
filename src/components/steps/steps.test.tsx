@@ -13,16 +13,24 @@ import { es, I18nProvider } from '../../i18n';
 import type { StartAutografaData } from '../../types/api';
 
 vi.mock('../camera/GuidedCameraCapture', () => ({
-  // Espía las props con las que cada paso monta la captura guiada (guide/detector)
-  // sin necesidad de simular una cámara real ni los detectores on-device.
-  GuidedCameraCapture: (props: { guide: string; detector: string; onCancel?: () => void }) => (
+  // Espía las props con las que cada paso monta la captura guiada
+  // (guide/detector/chrome) sin necesidad de simular una cámara real ni los
+  // detectores on-device.
+  GuidedCameraCapture: (props: {
+    guide: string; detector: string; chrome?: string;
+    onCancel?: () => void; onCapture?: (dataUrl: string) => void;
+  }) => (
     <div
       data-testid="guided-camera-mock"
       data-guide={props.guide}
       data-detector={props.detector}
+      data-chrome={props.chrome}
     >
       <button type="button" onClick={props.onCancel}>
         cerrar cámara mock
+      </button>
+      <button type="button" onClick={() => props.onCapture?.('data:image/jpeg;base64,selfiecam')}>
+        confirmar selfie mock
       </button>
     </div>
   ),
@@ -382,7 +390,15 @@ describe('SelfieStep', () => {
     });
   });
 
-  it('sube el archivo con step=selfie y avanza', async () => {
+  it('muestra la instrucción antes de la cámara (Task 24, sin checkbox de términos)', () => {
+    const ctx = makeCtx();
+    renderStep(<SelfieStep />, ctx);
+    expect(screen.getByRole('heading', { name: es.scanUi.selfie.title })).toBeInTheDocument();
+    expect(screen.queryByTestId('guided-camera-mock')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
+  it('sube el archivo con step=selfie y avanza (subida desde la instrucción)', async () => {
     const ctx = makeCtx();
     renderStep(<SelfieStep />, ctx);
     const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
@@ -399,24 +415,62 @@ describe('SelfieStep', () => {
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
   });
 
-  it('muestra la selfie previa si el backend ya la tiene guardada', () => {
+  it('muestra la selfie previa si el backend ya la tiene guardada (fast path, sin instrucción)', () => {
     const ctx = makeCtx({
       asignado: { nombre: 'Ana', status: 1, firma: { id: 3 },
         files: { idFront: null, idBack: null, sign: null, selfie: 'QUJD' } },
     });
     renderStep(<SelfieStep />, ctx);
+    // La instrucción no aparece: sin su eyebrow ni sus botones (el resumen
+    // también renderiza un h1 con el mismo texto "Selfie", así que no sirve
+    // como distintivo aquí).
+    expect(screen.queryByText(es.scanUi.eyebrow)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: es.scanUi.selfie.start })).not.toBeInTheDocument();
     expect(screen.getByAltText('Selfie')).toHaveAttribute(
       'src', expect.stringContaining('data:image/jpeg;base64,QUJD'),
     );
   });
 
-  it('monta GuidedCameraCapture con guide="face" y detector="face-selfie"', async () => {
+  it('monta GuidedCameraCapture con guide="face", detector="face-selfie" y chrome="scan" al iniciar desde la instrucción', async () => {
     const ctx = makeCtx();
     renderStep(<SelfieStep />, ctx);
-    await userEvent.click(screen.getByRole('button', { name: es.idCapture.openCamera }));
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.selfie.start }));
     const mock = screen.getByTestId('guided-camera-mock');
     expect(mock).toHaveAttribute('data-guide', 'face');
     expect(mock).toHaveAttribute('data-detector', 'face-selfie');
+    expect(mock).toHaveAttribute('data-chrome', 'scan');
+  });
+
+  it('cancelar la cámara regresa a la instrucción', async () => {
+    const ctx = makeCtx();
+    renderStep(<SelfieStep />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.selfie.start }));
+    await userEvent.click(screen.getByRole('button', { name: 'cerrar cámara mock' }));
+    expect(screen.getByRole('heading', { name: es.scanUi.selfie.title })).toBeInTheDocument();
+  });
+
+  it('el botón Regresar de la instrucción despacha BACK', async () => {
+    const ctx = makeCtx();
+    renderStep(<SelfieStep />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.selfie.back }));
+    expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'BACK' });
+  });
+
+  it('confirmar la captura de la cámara muestra el resumen y permite continuar (pipeline de envío sin cambios)', async () => {
+    const ctx = makeCtx();
+    renderStep(<SelfieStep />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.selfie.start }));
+    await userEvent.click(screen.getByRole('button', { name: 'confirmar selfie mock' }));
+    expect(screen.getByAltText('Selfie')).toHaveAttribute(
+      'src', expect.stringContaining('data:image/jpeg;base64,selfiecam'),
+    );
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+    await vi.waitFor(() =>
+      expect(ctx.api.saveFile).toHaveBeenCalledWith(
+        expect.objectContaining({ step: 'selfie', webCameraDataUrl: 'data:image/jpeg;base64,selfiecam' }),
+      ),
+    );
+    expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
   });
 });
 

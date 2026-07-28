@@ -264,6 +264,63 @@ describe('GuidedCameraCapture', () => {
     expect(createFaceFrameDetector).toHaveBeenCalledWith(assets);
   });
 
+  it('chrome por default ("plain") no cambia: status en texto plano y botón manual 📷 en digid-footer', async () => {
+    const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
+    vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);
+
+    const { container } = renderGuided({ guide: 'face', detector: 'face-selfie' });
+    setVideoDims(container);
+    await flush(400);
+
+    expect(container.querySelector('.digid-guided-camera')).toHaveAttribute('data-chrome', 'plain');
+    expect(container.querySelector('.digid-guided-camera__status')).not.toBeNull();
+    expect(container.querySelector('.digid-scan__badge')).toBeNull();
+    expect(container.querySelector('.digid-scan__shutter')).toBeNull();
+    expect(screen.getByRole('button', { name: es.capture.manualButton })).toHaveTextContent('📷');
+  });
+
+  it('chrome="scan" envuelve el stage en el chrome del escáner de INE: badge de vidrio, obturador aqua y cierre en la topbar', async () => {
+    const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
+    vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);
+    const onCancel = vi.fn();
+
+    const { container } = renderGuided({ guide: 'face', detector: 'face-selfie', chrome: 'scan', onCancel });
+    setVideoDims(container);
+    await flush(400);
+
+    expect(container.querySelector('.digid-guided-camera')).toHaveAttribute('data-chrome', 'scan');
+    // El óvalo guía (misma máscara SVG) se conserva sin cambios entre chromes.
+    expect(container.querySelector('svg.digid-guided-camera__mask')).not.toBeNull();
+    // Status como badge de vidrio en vez del <p> gris plano.
+    expect(container.querySelector('.digid-guided-camera__status')).toBeNull();
+    const badge = container.querySelector('.digid-scan__badge');
+    expect(badge).not.toBeNull();
+    expect(badge).toHaveTextContent(es.capture.searchingFace);
+    // Obturador aqua en vez del botón 📷 dentro de digid-footer.
+    expect(container.querySelector('.digid-footer')).toBeNull();
+    const shutter = container.querySelector('.digid-scan__shutter');
+    expect(shutter).not.toBeNull();
+    expect(shutter).toHaveAttribute('aria-label', es.capture.manualButton);
+
+    fireEvent.click(screen.getByRole('button', { name: es.capture.cancel }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('chrome="scan": el obturador dispara la captura manual igual que el botón 📷 del chrome plano', async () => {
+    const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
+    vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);
+    const onCapture = vi.fn();
+
+    const { container } = renderGuided({ guide: 'face', detector: 'face-selfie', chrome: 'scan', onCapture });
+    setVideoDims(container);
+    await flush(200);
+
+    fireEvent.click(screen.getByRole('button', { name: es.capture.manualButton }));
+    expect(screen.getByAltText('Vista previa de la captura')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+    expect(onCapture).toHaveBeenCalledWith('data:image/png;base64,stub');
+  });
+
   it('llama onCancel y apaga la cámara al cancelar', async () => {
     const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
     vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);

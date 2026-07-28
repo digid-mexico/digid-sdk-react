@@ -52,6 +52,20 @@ export const es = {
   scanUi: {
     eyebrow: 'Verificación de identidad',
     docChip: 'Credencial para votar (INE)',
+    selfie: {
+      title: 'Selfie',
+      hint: 'Tómate una selfie con el rostro descubierto, sin lentes oscuros ni cubrebocas, en un lugar con buena luz.',
+      tipsTitle: 'Recomendaciones',
+      tipLight: 'Busca un lugar con buena iluminación',
+      tipUncovered: 'Rostro descubierto, sin lentes oscuros ni cubrebocas',
+      tipCenter: 'Centra tu rostro dentro del óvalo',
+      privacy: 'Tus datos están protegidos y se usan únicamente para validar tu identidad.',
+      start: 'Iniciar',
+      back: 'Regresar',
+      uploadLink: 'O sube una foto desde tu galería',
+      close: 'Cerrar',
+      shutter: 'Capturar ahora',
+    },
     instruction: {
       frontTitle: 'Sube tu identificación frontal',
       backTitle: 'Sube el reverso de tu documento',

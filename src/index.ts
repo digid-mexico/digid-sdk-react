@@ -18,7 +18,7 @@ export { PlaceSignaturesStep } from './components/steps/PlaceSignaturesStep';
 export { CompletedStep } from './components/steps/CompletedStep';
 export { PdfViewer } from './components/pdf/PdfViewer';
 export { SignaturePad } from './components/signature/SignaturePad';
-export { GuidedCameraCapture, type DetectorKind } from './components/camera/GuidedCameraCapture';
+export { GuidedCameraCapture, type DetectorKind, type CameraChrome } from './components/camera/GuidedCameraCapture';
 export type { GuideKind } from './components/camera/guideRect';
 export { DocScanCapture, type DocScanCaptureProps } from './components/scan/DocScanCapture';
 export { ScanInstruction } from './components/scan/ScanInstruction';
