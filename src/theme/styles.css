@@ -459,6 +459,12 @@
   stroke-width: 2.5;
 }
 .digid-scan__detect--good circle { fill: var(--digid-primary); }
+/* El cuadrilátero se dibuja en coords del frame CRUDO del video (sin
+   espejar); en webcam de escritorio el <video> sí se espeja por CSS
+   (.digid-scan__video--mirrored), así que el overlay debe espejarse igual
+   para quedar alineado con lo que el usuario ve (si no, el polígono queda
+   invertido horizontalmente respecto a la credencial en pantalla). */
+.digid-scan__detect--mirrored { transform: scaleX(-1); }
 
 /* Badge de guía en vivo (retención/prioridad, ver showStatus). */
 .digid-scan__badge {

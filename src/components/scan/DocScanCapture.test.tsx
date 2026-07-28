@@ -270,4 +270,61 @@ describe('DocScanCapture', () => {
     fireEvent.click(screen.getByRole('button', { name: cam.close }));
     expect(props.onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it('el overlay de detección se espeja cuando la cámara es de escritorio (webcam frontal)', async () => {
+    vi.mocked(docScanReady).mockReturnValue(true);
+    vi.mocked(detectDocument).mockResolvedValue({
+      corners: FAKE_CORNERS, frame: null, aspect: 1.586, areaRatio: 0.5, score: 80,
+    });
+    vi.mocked(validateQuadInMarco).mockReturnValue({ ok: true, coverage: 0.8 });
+    vi.mocked(marcoGuidance).mockReturnValue(null);
+
+    const { container } = renderCapture();
+    prepareVideo(container);
+    // Simula una webcam de escritorio (facingMode "user"/desconocido): el
+    // track expone settings que shouldMirrorPreview interpreta como "sí
+    // espejar" (la única cámara de prueba real es "environment", que nunca
+    // se espeja — de ahí sobreescribir getUserMedia para este test).
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn().mockResolvedValue({
+          getTracks: () => [{ stop: vi.fn(), getSettings: () => ({ facingMode: 'user' }) }],
+          getVideoTracks: () => [{ stop: vi.fn(), getSettings: () => ({ facingMode: 'user' }) }],
+        }),
+      },
+    });
+
+    await advanceUntil(() => container.querySelector('.digid-scan__detect polygon') !== null);
+    expect(container.querySelector('.digid-scan__detect')).toHaveClass('digid-scan__detect--mirrored');
+    expect(container.querySelector('video')).toHaveClass('digid-scan__video--mirrored');
+  });
+
+  it('detiene el bucle de ticks al desmontar aunque un tick siga en curso (evita fuga de reprogramación infinita)', async () => {
+    vi.mocked(docScanReady).mockReturnValue(true);
+    let resolveDetect!: (v: { corners: null; frame: null }) => void;
+    vi.mocked(detectDocument).mockImplementation(
+      () => new Promise((resolve) => { resolveDetect = resolve; }),
+    );
+
+    const { container, unmount } = renderCapture();
+    prepareVideo(container);
+    // Dispara el primer tick, que queda "colgado" esperando detectDocument.
+    await advanceUntil(() => vi.mocked(detectDocument).mock.calls.length > 0);
+    expect(detectDocument).toHaveBeenCalledTimes(1);
+
+    unmount();
+    // El tick en vuelo se resuelve DESPUÉS del desmontaje (videoRef.current
+    // ya es null en ese punto): sin el guard de unmountedRef, la rama
+    // "!video" reprogramaría scheduleTick para siempre.
+    await act(async () => {
+      resolveDetect({ corners: null, frame: null });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // Si hubiera fuga, avanzar mucho tiempo dispararía más llamadas a
+    // detectDocument (cada reprogramación intenta un tick nuevo).
+    await flush(20000);
+    expect(detectDocument).toHaveBeenCalledTimes(1);
+  });
 });

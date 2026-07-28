@@ -72,12 +72,34 @@ const STABLE_NEEDED = 2;
 // Umbral de movimiento (cornerMovement) bajo el cual se considera "estable"
 // para efectos de la cuenta de auto-captura (distinto del umbral del
 // confirmador de overlay, más laxo: confirmar rápido, capturar exigente).
+// Calibrado en Camera.jsx a una cadencia de 200ms (TICK_MS_LIVE) — no
+// cambiar uno sin el otro.
 const MOVEMENT_STABLE_THRESHOLD = 0.045;
-// Cadencia del bucle de escaneo.
-const TICK_MS = 300;
+// Cadencia del bucle de escaneo cuando el worker está listo y detectando en
+// vivo (fastLoop en Camera.jsx): los umbrales de movimiento (0.045 aquí,
+// 0.05 en createDetectionConfirmer) son desplazamientos POR TICK calibrados
+// a este intervalo — no se pueden subir/bajar de forma independiente.
+const TICK_MS_LIVE = 200;
+// Cadencia mientras el worker no está listo (loading/manual): no hay
+// detección que mantener fluida, así que se afloja el muestreo.
+const TICK_MS_IDLE = 360;
+// Reintento cuando el tick encuentra el video aún no listo o el anterior
+// sigue en curso (busyRef): igual que Camera.jsx (scheduleScan(500)).
+const TICK_MS_RETRY = 500;
 // Tope de espera a que el worker de escaneo quede listo antes de degradar a
 // captura manual (marco visible, sin detección automática).
 const READY_TIMEOUT_MS = 8000;
+// Resolución ideal solicitada a getUserMedia (igual que Camera.jsx: el
+// escáner necesita más detalle que una llamada de video genérica para que
+// el recorte final sea legible). Constante de módulo (no un literal dentro
+// del componente) para que la referencia sea estable entre renders: si
+// cambiara en cada render, el `open` de useCamera cambiaría de identidad y
+// el efecto que lo invoca reabriría la cámara en bucle.
+const SCAN_VIDEO_CONSTRAINTS: MediaTrackConstraints = {
+  facingMode: 'environment',
+  width: { ideal: 1920 },
+  height: { ideal: 1080 },
+};
 
 type Phase = 'loading' | 'live' | 'manual' | 'preview';
 
@@ -159,7 +181,7 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const { stream, error, open, close } = useCamera('environment');
+  const { stream, error, open, close } = useCamera('environment', SCAN_VIDEO_CONSTRAINTS);
 
   const [phase, setPhase] = useState<Phase>('loading');
   const phaseRef = useRef<Phase>('loading');
@@ -173,7 +195,10 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
   const [quad, setQuad] = useState<QuadView | null>(null);
   const [showTips, setShowTips] = useState(false);
   const [preview, setPreview] = useState<PreviewState | null>(null);
-  const [mirrored, setMirrored] = useState(false);
+  // Arranque por dispositivo (sin track todavía): escritorio espejado, móvil
+  // no (igual que Camera.jsx) — evita el flash de un frame sin espejar en
+  // desktop antes de que el track resuelva sus settings reales.
+  const [mirrored, setMirrored] = useState(() => shouldMirrorPreview());
 
   const busyRef = useRef(false);
   const stableFramesRef = useRef(0);
@@ -189,6 +214,20 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
   const startTimeRef = useRef(0);
   const tickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickRef = useRef<() => void>(() => {});
+  // Se pone en true SOLO al desmontar (cleanup de efecto con deps []): un
+  // tick en curso al momento del desmontaje puede resolver sus promesas
+  // DESPUÉS (videoRef.current ya es null), y sin esta bandera reprogramaría
+  // el siguiente tick para siempre (scheduleTick se sigue llamando desde la
+  // rama "video no listo" cuando !video, entrando en un bucle infinito que
+  // nunca se limpia). scheduleTick la consulta como barrera única.
+  const unmountedRef = useRef(false);
+  useEffect(() => () => {
+    unmountedRef.current = true;
+  }, []);
+  // Evita que un doble click/tap en el obturador dispare captureManual() dos
+  // veces en paralelo mientras la primera sigue en curso (assessDocQuality,
+  // etc. son async).
+  const manualCaptureInFlightRef = useRef(false);
 
   useEffect(() => {
     void open();
@@ -251,20 +290,38 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
   );
 
   const scheduleTick = useCallback((delay: number) => {
+    // Barrera única: ningún llamador (tick() en cualquiera de sus ramas, o
+    // el efecto que arranca el bucle) vuelve a armar un timeout una vez
+    // desmontado el componente.
+    if (unmountedRef.current) return;
     if (tickTimerRef.current) clearTimeout(tickTimerRef.current);
     tickTimerRef.current = setTimeout(() => tickRef.current(), delay);
   }, []);
 
+  // Cancela cualquier tick programado: se llama al confirmarse una captura
+  // (auto, manual o de galería) para que el bucle en vivo no siga
+  // ejecutando un tick de más mientras se muestra el preview.
+  const stopTickLoop = useCallback(() => {
+    if (tickTimerRef.current) {
+      clearTimeout(tickTimerRef.current);
+      tickTimerRef.current = null;
+    }
+  }, []);
+
   const tick = useCallback(async () => {
-    if (phaseRef.current === 'preview') return; // pausado durante el preview
+    if (unmountedRef.current || phaseRef.current === 'preview') return; // desmontado o pausado durante el preview
     const video = videoRef.current;
     if (busyRef.current || !video || video.readyState < 2) {
-      scheduleTick(TICK_MS);
+      scheduleTick(TICK_MS_RETRY);
       return;
     }
     busyRef.current = true;
+    // fastLoop (igual que Camera.jsx): true solo mientras el worker detecta
+    // en vivo — decide la cadencia del PRÓXIMO tick al final de esta pasada.
+    let fastLoop = false;
     try {
       if (docScanReady()) {
+        fastLoop = true;
         if (phaseRef.current !== 'live') setPhase('live');
         const dispW = video.clientWidth || 1;
         const dispH = video.clientHeight || 1;
@@ -309,13 +366,13 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
               stableFramesRef.current += 1;
               const capturing = stableFramesRef.current >= STABLE_NEEDED;
               showStatus(
-                capturing ? 'Credencial detectada · capturando...' : 'Credencial detectada · mantén la posición',
+                capturing ? cam.detectedCapturing : cam.detectedHolding,
                 true,
                 capturing ? 'capturing' : 'detected',
               );
             } else {
               stableFramesRef.current = 0;
-              showStatus('Credencial detectada · sin mover la cámara', true, 'detected');
+              showStatus(cam.detectedNoMove, true, 'detected');
             }
 
             if (!guidance && stableFramesRef.current >= STABLE_NEEDED) {
@@ -324,10 +381,11 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
                 const quality = await assessDocQuality(docCanvas);
                 if (quality && extremeBlur(quality.metrics)) {
                   stableFramesRef.current = 0;
-                  showStatus('Imagen movida - Mantén firme la cámara', false, 'qualityHint');
+                  showStatus(cam.blurryRetry, false, 'qualityHint');
                 } else {
                   const enhanced = createEnhancedDocumentImage(docCanvas);
                   close();
+                  stopTickLoop();
                   setPreview({
                     dataUrl: enhanced.dataUrl,
                     score: quality ? quality.score : 0,
@@ -384,12 +442,16 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
       }
     } catch {
       stableFramesRef.current = 0;
-      showStatus('No se pudo evaluar la imagen. Intenta de nuevo.', false, 'guidance');
+      showStatus(cam.evalError, false, 'guidance');
     } finally {
       busyRef.current = false;
     }
-    scheduleTick(TICK_MS);
-  }, [computeMarco, showStatus, close, extractFromFullFrame, scheduleTick, cam.manualNotice, cam.sourceAuto]);
+    scheduleTick(fastLoop ? TICK_MS_LIVE : TICK_MS_IDLE);
+  }, [
+    computeMarco, showStatus, close, extractFromFullFrame, scheduleTick, stopTickLoop,
+    cam.manualNotice, cam.sourceAuto, cam.detectedCapturing, cam.detectedHolding, cam.detectedNoMove,
+    cam.blurryRetry, cam.evalError,
+  ]);
 
   useEffect(() => {
     tickRef.current = () => {
@@ -406,40 +468,50 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
   }, [stream, scheduleTick]);
 
   const captureManual = useCallback(async () => {
+    // Guarda contra doble click/tap: sin esto, dos taps rápidos sobre el
+    // obturador disparan dos capturas en paralelo (detectDocumentStill,
+    // assessDocQuality, etc. son async) que pisan el preview entre sí.
+    if (manualCaptureInFlightRef.current) return;
     const video = videoRef.current;
     if (!video || video.readyState < 2) return;
-    const dispW = video.clientWidth || 1;
-    const dispH = video.clientHeight || 1;
-    const srcW = video.videoWidth || 1280;
-    const srcH = video.videoHeight || 720;
-    const fullCanvas = grabFrame(video, FULL_FRAME_WIDTH, fullCanvasRef);
-    const factor = fullCanvas.width / srcW;
-    const { marcoFrame } = computeMarco(srcW, srcH, dispW, dispH);
-    let docCanvas: HTMLCanvasElement | null = null;
-    if (docScanReady()) {
-      const roi = roiFromMarco(marcoFrame, srcW, srcH);
-      const roiFull = scaleRect(roi, factor);
-      const roiCanvas = cropRect(fullCanvas, roiFull);
-      const detection = await detectDocumentStill(roiCanvas);
-      docCanvas = detection ? await extractStillOriented(roiCanvas, detection) : null;
+    manualCaptureInFlightRef.current = true;
+    try {
+      const dispW = video.clientWidth || 1;
+      const dispH = video.clientHeight || 1;
+      const srcW = video.videoWidth || 1280;
+      const srcH = video.videoHeight || 720;
+      const fullCanvas = grabFrame(video, FULL_FRAME_WIDTH, fullCanvasRef);
+      const factor = fullCanvas.width / srcW;
+      const { marcoFrame } = computeMarco(srcW, srcH, dispW, dispH);
+      let docCanvas: HTMLCanvasElement | null = null;
+      if (docScanReady()) {
+        const roi = roiFromMarco(marcoFrame, srcW, srcH);
+        const roiFull = scaleRect(roi, factor);
+        const roiCanvas = cropRect(fullCanvas, roiFull);
+        const detection = await detectDocumentStill(roiCanvas);
+        docCanvas = detection ? await extractStillOriented(roiCanvas, detection) : null;
+      }
+      // Sin quad (o worker no disponible): captura el rectángulo del marco
+      // tal cual — el usuario alineó la credencial al marco y presionó el
+      // obturador; esto NUNCA se bloquea por calidad.
+      const sourceCanvas = docCanvas || cropRect(fullCanvas, scaleRect(marcoFrame, factor));
+      const enhanced = createEnhancedDocumentImage(sourceCanvas);
+      const assessed = docScanReady() ? await assessDocQuality(sourceCanvas) : null;
+      const heuristic = assessed ? null : analyzeDocumentQuality(sourceCanvas, side);
+      close();
+      stopTickLoop();
+      setPreview({
+        dataUrl: enhanced.dataUrl,
+        score: assessed ? assessed.score : heuristic!.score,
+        hint: assessed ? assessed.hint : heuristic!.hint,
+        ok: assessed ? assessed.ok : true,
+        source: cam.sourceManual,
+      });
+      setPhase('preview');
+    } finally {
+      manualCaptureInFlightRef.current = false;
     }
-    // Sin quad (o worker no disponible): captura el rectángulo del marco tal
-    // cual — el usuario alineó la credencial al marco y presionó el
-    // obturador; esto NUNCA se bloquea por calidad.
-    const sourceCanvas = docCanvas || cropRect(fullCanvas, scaleRect(marcoFrame, factor));
-    const enhanced = createEnhancedDocumentImage(sourceCanvas);
-    const assessed = docScanReady() ? await assessDocQuality(sourceCanvas) : null;
-    const heuristic = assessed ? null : analyzeDocumentQuality(sourceCanvas, side);
-    close();
-    setPreview({
-      dataUrl: enhanced.dataUrl,
-      score: assessed ? assessed.score : heuristic!.score,
-      hint: assessed ? assessed.hint : heuristic!.hint,
-      ok: assessed ? assessed.ok : true,
-      source: cam.sourceManual,
-    });
-    setPhase('preview');
-  }, [computeMarco, extractStillOriented, close, side, cam.sourceManual]);
+  }, [computeMarco, extractStillOriented, close, stopTickLoop, side, cam.sourceManual]);
 
   const processFile = useCallback(
     (file: File) => {
@@ -459,6 +531,7 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
           const heuristic = assessed ? null : analyzeDocumentQuality(sourceCanvas, side);
           const enhanced = createEnhancedDocumentImage(sourceCanvas);
           close();
+          stopTickLoop();
           setPreview({
             dataUrl: enhanced.dataUrl,
             score: assessed ? assessed.score : heuristic!.score,
@@ -470,9 +543,18 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
           URL.revokeObjectURL(img.src);
         })();
       };
+      // Archivo corrupto/formato no decodificable: sin este handler, el
+      // object URL nunca se revoca (fuga) y la UI se queda pegada sin
+      // preview ni aviso alguno. Se notifica si hay FlowContext disponible
+      // (uso normal dentro de <FirmaAutografa>); fuera de él, al menos no
+      // hay fuga y el firmante puede reintentar con el botón u otro archivo.
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        flow?.notify('error', s.errors.generic);
+      };
       img.src = URL.createObjectURL(file);
     },
-    [extractStillOriented, close, side, cam.sourceFile],
+    [extractStillOriented, close, stopTickLoop, side, cam.sourceFile, flow, s.errors.generic],
   );
 
   const retake = useCallback(() => {

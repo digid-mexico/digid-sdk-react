@@ -87,6 +87,11 @@ export const es = {
       sourceAuto: 'Escaneo automático',
       sourceManual: 'Captura manual',
       sourceFile: 'Archivo cargado',
+      detectedHolding: 'Credencial detectada · mantén la posición',
+      detectedCapturing: 'Credencial detectada · capturando...',
+      detectedNoMove: 'Credencial detectada · sin mover la cámara',
+      blurryRetry: 'Imagen movida - Mantén firme la cámara',
+      evalError: 'No se pudo evaluar la imagen. Intenta de nuevo.',
     },
     preview: {
       frontTitle: 'Documento capturado',

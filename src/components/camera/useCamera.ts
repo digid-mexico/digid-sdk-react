@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export function useCamera(facingMode: 'environment' | 'user' = 'environment') {
+export function useCamera(
+  facingMode: 'environment' | 'user' = 'environment',
+  // Constraints de video propias (p.ej. resolución ideal para el escáner de
+  // INE, ver DocScanCapture): si se pasa, reemplaza por completo al
+  // `{ facingMode }` por defecto. Opcional y retrocompatible — los llamadores
+  // existentes (GuidedCameraCapture/SelfieStep) no lo pasan y no cambian de
+  // comportamiento.
+  videoConstraints?: MediaTrackConstraints,
+) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -28,7 +36,7 @@ export function useCamera(facingMode: 'environment' | 'user' = 'environment') {
     setError(null);
     const myGeneration = generationRef.current;
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
+      const s = await navigator.mediaDevices.getUserMedia({ video: videoConstraints ?? { facingMode } });
       // Si el componente se desmontó o otro open()/close() superó esta
       // llamada mientras getUserMedia estaba pendiente, el stream quedó
       // huérfano: apágalo de inmediato y no actualices estado.
@@ -42,7 +50,7 @@ export function useCamera(facingMode: 'environment' | 'user' = 'environment') {
       if (!mountedRef.current || generationRef.current !== myGeneration) return;
       setError(e instanceof Error ? e : new Error(String(e)));
     }
-  }, [close, facingMode]);
+  }, [close, facingMode, videoConstraints]);
 
   // Garantiza que la cámara se apaga al desmontar el componente.
   useEffect(() => close, [close]);

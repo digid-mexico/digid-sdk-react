@@ -34,6 +34,14 @@ describe('useCamera', () => {
     });
   });
 
+  it('usa las constraints de video propias cuando se pasan, en vez de { facingMode }', async () => {
+    const constraints = { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } };
+    const { result } = renderHook(() => useCamera('environment', constraints));
+    await act(() => result.current.open());
+    await waitFor(() => expect(result.current.stream).toBe(fakeStream));
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ video: constraints });
+  });
+
   it('detiene todos los tracks al cerrar', async () => {
     const { result } = renderHook(() => useCamera());
     await act(() => result.current.open());
