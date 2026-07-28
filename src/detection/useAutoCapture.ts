@@ -22,6 +22,15 @@ export interface AutoCaptureOptions {
   stableMs?: number; // default 1200 — detecciones aceptadas continuas
   countdownMs?: number; // default 1000
   requireSharp?: boolean; // default true — isSharp() sobre el frame muestreado
+  /** Ancho (px) al que se reescala el frame muestreado antes de detectar (default 320). */
+  sampleWidth?: number;
+  /**
+   * Fallos de runtime consecutivos del detector (excepciones al invocarlo,
+   * no "sin detección") tras los cuales se pasa a 'unavailable' y se detiene
+   * el loop. Un detect exitoso (no lanza, aunque no encuentre nada) reinicia
+   * el contador. Default 5.
+   */
+  maxDetectorFailures?: number;
 }
 
 export interface AutoCaptureState {
@@ -29,7 +38,8 @@ export interface AutoCaptureState {
   countdownProgress: number;
 }
 
-const SAMPLE_WIDTH = 320;
+const DEFAULT_SAMPLE_WIDTH = 320;
+const DEFAULT_MAX_DETECTOR_FAILURES = 5;
 
 export function useAutoCapture(opts: AutoCaptureOptions): AutoCaptureState {
   const {
@@ -39,6 +49,8 @@ export function useAutoCapture(opts: AutoCaptureOptions): AutoCaptureState {
     stableMs = 1200,
     countdownMs = 1000,
     requireSharp = true,
+    sampleWidth = DEFAULT_SAMPLE_WIDTH,
+    maxDetectorFailures = DEFAULT_MAX_DETECTOR_FAILURES,
   } = opts;
 
   const [status, setStatus] = useState<AutoCaptureStatus>('idle');
@@ -75,6 +87,7 @@ export function useAutoCapture(opts: AutoCaptureOptions): AutoCaptureState {
     let countdownStart: number | null = null;
     let captured = false;
     let frameInFlight = false;
+    let consecutiveFailures = 0;
 
     function stop() {
       if (intervalId !== undefined) clearInterval(intervalId);
@@ -100,10 +113,10 @@ export function useAutoCapture(opts: AutoCaptureOptions): AutoCaptureState {
 
         if (!canvasRef.current) canvasRef.current = document.createElement('canvas');
         const canvas = canvasRef.current;
-        const scale = SAMPLE_WIDTH / video.videoWidth;
-        canvas.width = SAMPLE_WIDTH;
+        const scale = sampleWidth / video.videoWidth;
+        canvas.width = sampleWidth;
         canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) {
           resetTo('searching');
           return;
@@ -114,7 +127,18 @@ export function useAutoCapture(opts: AutoCaptureOptions): AutoCaptureState {
         let result: DetectionResult | null;
         try {
           result = await detector(frame);
+          consecutiveFailures = 0;
         } catch {
+          consecutiveFailures += 1;
+          if (consecutiveFailures >= maxDetectorFailures) {
+            if (isCurrent()) {
+              captured = true; // bloquea nuevos frames, igual que una captura exitosa
+              stop();
+              setStatus('unavailable');
+              setCountdownProgress(0);
+            }
+            return;
+          }
           result = null;
         }
 
@@ -185,7 +209,7 @@ export function useAutoCapture(opts: AutoCaptureOptions): AutoCaptureState {
       stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- createDetector/accept/onCapture se leen vía refs a propósito: no deben reiniciar el ciclo de detección en cada render.
-  }, [enabled, intervalMs, stableMs, countdownMs, requireSharp, videoRef]);
+  }, [enabled, intervalMs, stableMs, countdownMs, requireSharp, sampleWidth, maxDetectorFailures, videoRef]);
 
   return { status, countdownProgress };
 }

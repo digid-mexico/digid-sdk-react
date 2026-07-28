@@ -285,6 +285,137 @@ describe('useAutoCapture', () => {
     expect(detector).not.toHaveBeenCalled();
   });
 
+  it('tras N fallos de detección en runtime (excepciones) pasa a unavailable y detiene el loop', async () => {
+    const videoRef = fakeVideoRef();
+    const detector: FrameDetector = vi.fn().mockRejectedValue(new Error('boom'));
+    const createDetector = vi.fn().mockResolvedValue(detector);
+
+    const { result } = renderHook(() =>
+      useAutoCapture({
+        videoRef,
+        enabled: true,
+        createDetector,
+        accept: () => true,
+        onCapture: vi.fn(),
+        intervalMs: 100,
+        maxDetectorFailures: 5,
+      }),
+    );
+
+    // 5 ticks de 100ms = exactamente los 5 fallos consecutivos configurados.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(result.current.status).toBe('unavailable');
+    const callsAtUnavailable = vi.mocked(detector).mock.calls.length;
+    expect(callsAtUnavailable).toBe(5);
+
+    // El loop se detuvo: seguir avanzando el reloj no genera más llamadas.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(vi.mocked(detector).mock.calls.length).toBe(callsAtUnavailable);
+  });
+
+  it('un detect exitoso reinicia el contador de fallos consecutivos', async () => {
+    const videoRef = fakeVideoRef();
+    let call = 0;
+    const detector: FrameDetector = vi.fn().mockImplementation(async () => {
+      call++;
+      // Falla 4 veces, un éxito (sin detección), y falla 4 veces más: nunca
+      // hay 5 fallos consecutivos si el contador se reinicia correctamente
+      // en el éxito intermedio (si no se reiniciara, el 5º fallo absoluto —
+      // 1 después del éxito — dispararía unavailable de todos modos).
+      if (call === 5) return null;
+      throw new Error('boom');
+    });
+    const createDetector = vi.fn().mockResolvedValue(detector);
+
+    const { result } = renderHook(() =>
+      useAutoCapture({
+        videoRef,
+        enabled: true,
+        createDetector,
+        accept: () => true,
+        onCapture: vi.fn(),
+        intervalMs: 100,
+        maxDetectorFailures: 5,
+      }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(900); // 9 ticks: fail x4, success, fail x4
+    });
+
+    expect(result.current.status).not.toBe('unavailable');
+    expect(vi.mocked(detector).mock.calls.length).toBe(9);
+  });
+
+  it('usa sampleWidth para el ancho de muestreo del canvas (default 320)', async () => {
+    const videoRef = fakeVideoRef(1280, 720);
+    let sampledWidth = 0;
+    const detector: FrameDetector = vi.fn().mockImplementation(async (frame: ImageData) => {
+      sampledWidth = frame.width;
+      return null;
+    });
+    const createDetector = vi.fn().mockResolvedValue(detector);
+
+    renderHook(() =>
+      useAutoCapture({ videoRef, enabled: true, createDetector, accept: () => true, onCapture: vi.fn() }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    expect(sampledWidth).toBe(320);
+  });
+
+  it('permite un sampleWidth mayor (p.ej. 640 para códigos de barras)', async () => {
+    const videoRef = fakeVideoRef(1280, 720);
+    let sampledWidth = 0;
+    const detector: FrameDetector = vi.fn().mockImplementation(async (frame: ImageData) => {
+      sampledWidth = frame.width;
+      return null;
+    });
+    const createDetector = vi.fn().mockResolvedValue(detector);
+
+    renderHook(() =>
+      useAutoCapture({
+        videoRef,
+        enabled: true,
+        createDetector,
+        accept: () => true,
+        onCapture: vi.fn(),
+        sampleWidth: 640,
+      }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    expect(sampledWidth).toBe(640);
+  });
+
+  it('crea el contexto 2d del canvas de muestreo con willReadFrequently', async () => {
+    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext');
+    const videoRef = fakeVideoRef();
+    const detector: FrameDetector = vi.fn().mockResolvedValue(null);
+    const createDetector = vi.fn().mockResolvedValue(detector);
+
+    renderHook(() =>
+      useAutoCapture({ videoRef, enabled: true, createDetector, accept: () => true, onCapture: vi.fn() }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+
+    expect(getContextSpy).toHaveBeenCalledWith('2d', { willReadFrequently: true });
+  });
+
   it('limpia el intervalo al desmontar (no siguen llegando frames)', async () => {
     const videoRef = fakeVideoRef();
     const detector: FrameDetector = vi.fn().mockResolvedValue(null);
