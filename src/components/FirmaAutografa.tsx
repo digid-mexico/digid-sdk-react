@@ -4,6 +4,8 @@ import { FlowContext } from '../core/FlowContext';
 import { useAutografaFlow } from '../core/useAutografaFlow';
 import { ThemeProvider, sanitizeColor, type DigidTheme } from '../theme/ThemeProvider';
 import type { DetectionAssets } from '../detection/types';
+import { disposeFaceDetector } from '../detection/faceDetector';
+import { disposeBarcodeDetector } from '../detection/barcodeDetector';
 import { I18nProvider, es } from '../i18n';
 import { Spinner } from './ui/Spinner';
 import { Toast } from './ui/Toast';
@@ -44,6 +46,19 @@ export function FirmaAutografa({
 
   // Evita que un timeout pendiente dispare setState tras el desmontaje
   useEffect(() => () => clearTimeout(toastTimer.current), []);
+
+  // Libera los detectores on-device cacheados a nivel de módulo (Task 21) al
+  // desmontar la raíz del SDK: se cachean deliberadamente entre pasos
+  // (INE frontal/reverso/selfie) para no reinicializar el WASM en cada uno,
+  // pero deben cerrarse cuando el integrador desmonta <FirmaAutografa>.
+  // Fire-and-forget: no hay nada útil que hacer con un fallo aquí.
+  useEffect(
+    () => () => {
+      void disposeFaceDetector().catch(() => {});
+      void disposeBarcodeDetector().catch(() => {});
+    },
+    [],
+  );
 
   // Estilos por cliente del backend (saneados) tienen prioridad sobre el theme del integrador
   const effectiveTheme: DigidTheme = useMemo(() => {

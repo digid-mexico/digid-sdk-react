@@ -77,6 +77,35 @@
 .digid-signature-canvas { width: 100%; height: 280px; touch-action: none;
   border: 1px solid var(--digid-border); border-radius: var(--digid-radius); }
 .digid-camera video, .digid-camera canvas, .digid-camera img { max-width: 100%; border-radius: var(--digid-radius); }
+
+/* --- Captura guiada (marco + detección automática, Task 21) --- */
+.digid-guided-camera__stage {
+  position: relative; width: 100%; overflow: hidden;
+  border-radius: var(--digid-radius); background: #111928;
+}
+.digid-guided-camera__stage video {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; border-radius: 0; max-width: none;
+}
+.digid-guided-camera__mask, .digid-guided-camera__ring {
+  position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+}
+.digid-guided-camera__ring {
+  width: 72px; height: 72px; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  inset: auto; transform-origin: center;
+}
+.digid-guided-camera__ring-track, .digid-guided-camera__ring-progress {
+  fill: none; stroke-width: 3;
+}
+.digid-guided-camera__ring-track { stroke: rgb(255 255 255 / 0.35); }
+.digid-guided-camera__ring-progress {
+  stroke: var(--digid-primary); stroke-linecap: round;
+  transform: rotate(-90deg); transform-origin: center;
+  transition: stroke-dashoffset 120ms linear;
+}
+.digid-guided-camera__status {
+  text-align: center; color: var(--digid-gray); font-size: 14px; margin: 0;
+}
 .digid-upload { border: 1px dashed var(--digid-border); border-radius: var(--digid-radius);
   min-height: 280px; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 16px; cursor: pointer; }

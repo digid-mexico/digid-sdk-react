@@ -57,6 +57,17 @@ if (typeof Element !== 'undefined' && !Element.prototype.scrollTo) {
   Element.prototype.scrollTo = () => {};
 }
 
+// jsdom no implementa <video>.play()/pause() (devuelve `undefined` en vez de
+// una promesa, vía su mecanismo "not implemented"): CameraCapture y
+// GuidedCameraCapture hacen `videoRef.current.play().catch(...)` al recibir
+// el stream, lo que revienta con un TypeError sin este stub.
+if (typeof HTMLMediaElement !== 'undefined') {
+  HTMLMediaElement.prototype.play = function () {
+    return Promise.resolve();
+  };
+  HTMLMediaElement.prototype.pause = function () {};
+}
+
 // jsdom no implementa el constructor global ImageData (usado por las
 // utilidades de nitidez y detección en src/detection). Polyfill mínimo:
 // soporta `new ImageData(width, height)` y `new ImageData(data, width, height?)`.

@@ -1,10 +1,19 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 import { FirmaAutografa } from './FirmaAutografa';
 import { es } from '../i18n';
+
+vi.mock('../detection/faceDetector', () => ({
+  createFaceFrameDetector: vi.fn(),
+  disposeFaceDetector: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('../detection/barcodeDetector', () => ({
+  createBarcodeFrameDetector: vi.fn(),
+  disposeBarcodeDetector: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('./pdf/PdfViewer', () => {
   const { useEffect, useRef } = require('react');
@@ -56,7 +65,16 @@ const server = setupServer(
   ),
 );
 beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  // Desmonta explícitamente ANTES de limpiar los mocks: los afterEach
+  // definidos en el archivo corren antes que el cleanup automático interno
+  // de @testing-library/react (registrado al importarlo), así que sin este
+  // cleanup() manual el desmontaje real (y su llamada a dispose*Detector)
+  // ocurriría después de vi.clearAllMocks() y se filtraría al siguiente test.
+  cleanup();
+  server.resetHandlers();
+  vi.clearAllMocks();
+});
 afterAll(() => server.close());
 
 describe('FirmaAutografa — flujo completo', () => {
@@ -203,5 +221,17 @@ describe('FirmaAutografa — flujo completo', () => {
 
     await screen.findByText(es.completed.title);
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
+  });
+
+  it('libera los detectores on-device cacheados al desmontar la raíz', async () => {
+    const { disposeFaceDetector } = await import('../detection/faceDetector');
+    const { disposeBarcodeDetector } = await import('../detection/barcodeDetector');
+    const { unmount } = render(<FirmaAutografa token="tok" baseUrl={BASE} />);
+    await screen.findByText(es.start.title);
+
+    expect(disposeFaceDetector).not.toHaveBeenCalled();
+    unmount();
+    expect(disposeFaceDetector).toHaveBeenCalledTimes(1);
+    expect(disposeBarcodeDetector).toHaveBeenCalledTimes(1);
   });
 });

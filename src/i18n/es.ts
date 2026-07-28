@@ -49,6 +49,17 @@ export const es = {
     hint: 'Tómate una selfie',
     legible: 'Asegúrese de que su rostro sea claramente visible y esté bien iluminado',
   },
+  capture: {
+    loading: 'Preparando detección…',
+    searchingId: 'Coloca tu identificación dentro del marco',
+    searchingFace: 'Coloca tu rostro dentro del óvalo',
+    adjusting: 'Ajusta la posición — que llene el marco y se vea nítida',
+    holding: 'Mantente así…',
+    countdown: 'Capturando…',
+    unavailable: 'La captura automática no está disponible; usa el botón para capturar.',
+    manualButton: 'Capturar manualmente',
+    cancel: 'Cancelar',
+  },
   createSign: {
     title: 'Valida tu información',
     heading: '¡Llegó el momento de firmar!',

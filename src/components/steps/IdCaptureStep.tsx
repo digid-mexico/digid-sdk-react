@@ -3,7 +3,7 @@ import { useFlow } from '../../core/FlowContext';
 import { useStrings } from '../../i18n';
 import { Button } from '../ui/Button';
 import { Stepper } from '../ui/Stepper';
-import { CameraCapture } from '../camera/CameraCapture';
+import { GuidedCameraCapture } from '../camera/GuidedCameraCapture';
 import { validateImageFile, normalizeToJpeg } from '../../utils/image';
 import { isMobileDevice } from '../../utils/device';
 
@@ -101,7 +101,9 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
       <p>{s.idCapture.legible}</p>
 
       {cameraOpen ? (
-        <CameraCapture
+        <GuidedCameraCapture
+          guide="id"
+          detector={side === 'front' ? 'face-small' : 'barcode'}
           mirror={!isMobileDevice()}
           onCancel={() => setCameraOpen(false)}
           onCapture={(dataUrl) => {

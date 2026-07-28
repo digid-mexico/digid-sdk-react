@@ -12,6 +12,22 @@ import { computeStepOrder } from '../../core/flowReducer';
 import { es, I18nProvider } from '../../i18n';
 import type { StartAutografaData } from '../../types/api';
 
+vi.mock('../camera/GuidedCameraCapture', () => ({
+  // Espía las props con las que cada paso monta la captura guiada (guide/detector)
+  // sin necesidad de simular una cámara real ni los detectores on-device.
+  GuidedCameraCapture: (props: { guide: string; detector: string; onCancel?: () => void }) => (
+    <div
+      data-testid="guided-camera-mock"
+      data-guide={props.guide}
+      data-detector={props.detector}
+    >
+      <button type="button" onClick={props.onCancel}>
+        cerrar cámara mock
+      </button>
+    </div>
+  ),
+}));
+
 vi.mock('../pdf/PdfViewer', () => ({
   // Invoca onPagesRendered una sola vez al montar (como el componente real,
   // que lo hace desde un efecto tras cargar el PDF). Llamarlo directo en el
@@ -297,6 +313,24 @@ describe('IdCaptureStep', () => {
     expect(ctx.api.saveFile).toHaveBeenCalledTimes(1);
     expect(ctx.dispatch).toHaveBeenCalledTimes(1);
   });
+
+  it('el frente monta GuidedCameraCapture con guide="id" y detector="face-small"', async () => {
+    const ctx = makeCtx();
+    renderStep(<IdCaptureStep side="front" />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.openCamera }));
+    const mock = screen.getByTestId('guided-camera-mock');
+    expect(mock).toHaveAttribute('data-guide', 'id');
+    expect(mock).toHaveAttribute('data-detector', 'face-small');
+  });
+
+  it('el reverso monta GuidedCameraCapture con guide="id" y detector="barcode"', async () => {
+    const ctx = makeCtx();
+    renderStep(<IdCaptureStep side="back" />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.openCamera }));
+    const mock = screen.getByTestId('guided-camera-mock');
+    expect(mock).toHaveAttribute('data-guide', 'id');
+    expect(mock).toHaveAttribute('data-detector', 'barcode');
+  });
 });
 
 describe('SelfieStep', () => {
@@ -333,6 +367,15 @@ describe('SelfieStep', () => {
     expect(screen.getByAltText('Selfie')).toHaveAttribute(
       'src', expect.stringContaining('data:image/jpeg;base64,QUJD'),
     );
+  });
+
+  it('monta GuidedCameraCapture con guide="face" y detector="face-selfie"', async () => {
+    const ctx = makeCtx();
+    renderStep(<SelfieStep />, ctx);
+    await userEvent.click(screen.getByRole('button', { name: es.idCapture.openCamera }));
+    const mock = screen.getByTestId('guided-camera-mock');
+    expect(mock).toHaveAttribute('data-guide', 'face');
+    expect(mock).toHaveAttribute('data-detector', 'face-selfie');
   });
 });
 

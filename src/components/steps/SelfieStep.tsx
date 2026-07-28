@@ -3,7 +3,7 @@ import { useFlow } from '../../core/FlowContext';
 import { useStrings } from '../../i18n';
 import { Button } from '../ui/Button';
 import { Stepper } from '../ui/Stepper';
-import { CameraCapture } from '../camera/CameraCapture';
+import { GuidedCameraCapture } from '../camera/GuidedCameraCapture';
 import { validateImageFile, normalizeToJpeg } from '../../utils/image';
 import { isMobileDevice } from '../../utils/device';
 
@@ -100,7 +100,9 @@ export function SelfieStep() {
       <p>{s.selfie.legible}</p>
 
       {cameraOpen ? (
-        <CameraCapture
+        <GuidedCameraCapture
+          guide="face"
+          detector="face-selfie"
           facingMode="user"
           // mirror voltea horizontalmente el frame CAPTURADO (no solo el
           // preview), así que debe ser condicional al dispositivo, igual que
