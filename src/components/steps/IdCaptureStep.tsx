@@ -141,18 +141,25 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
             onUploadClick={() => inputRef.current?.click()}
           />
         </div>
-      ) : view === 'preview' && source.kind === 'existing' ? (
-        // Fast path: imagen ya guardada en el backend (sin métricas de
-        // calidad, así que sin checklist inventado) — mismo layout/clases
-        // que el preview de captura fresca de DocScanCapture (Task 25).
+      ) : (
+        // Preview unificado (Task 25): mismo layout/clases que el preview de
+        // captura fresca de DocScanCapture para las tres fuentes de imagen
+        // (backend, archivo subido, escaneada) — sin inventar métricas de
+        // calidad fuera del preview propio de DocScanCapture; aquí solo un
+        // check informativo según el origen.
         <>
           <ScanPreviewLayout
             eyebrow={s.scanUi.eyebrow}
             title={side === 'back' ? s.scanUi.preview.backTitle : s.scanUi.preview.frontTitle}
-            subtitle={s.scanUi.preview.savedSubtitle}
+            subtitle={source.kind === 'existing' ? s.scanUi.preview.savedSubtitle : s.scanUi.preview.subcopy}
             imageSrc={previewSrc!}
             imageAlt={`Identificación ${side === 'front' ? 'frontal' : 'reverso'}`}
-            checklist={[{ key: 'saved', label: s.scanUi.preview.savedCheck }]}
+            checklist={[
+              {
+                key: 'status',
+                label: source.kind === 'existing' ? s.scanUi.preview.savedCheck : s.scanUi.preview.uploadedCheck,
+              },
+            ]}
             actions={
               <>
                 <Button
@@ -165,7 +172,7 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
                 >
                   {s.scanUi.preview.repeat}
                 </Button>
-                <Button disabled={submitting} onClick={() => void submit()}>
+                <Button disabled={source.kind === 'none' || submitting} onClick={() => void submit()}>
                   {s.scanUi.preview.continue}
                 </Button>
               </>
@@ -177,37 +184,6 @@ export function IdCaptureStep({ side }: { side: 'front' | 'back' }) {
           <div className="digid-footer">
             <Button variant="secondary" onClick={() => dispatch({ type: 'BACK' })}>
               {s.idCapture.back}
-            </Button>
-          </div>
-        </>
-      ) : (
-        <>
-          <h1>{side === 'front' ? s.idCapture.frontTitle : s.idCapture.backTitle}</h1>
-          <p>{side === 'front' ? s.idCapture.frontHint : s.idCapture.backHint}</p>
-          <p>{s.idCapture.legible}</p>
-
-          {previewSrc && (
-            <div>
-              <img src={previewSrc} alt={`Identificación ${side === 'front' ? 'frontal' : 'reverso'}`} />
-              <Button variant="secondary" aria-label="Cambiar foto"
-                onClick={() => {
-                  revokeCurrentObjectUrl();
-                  setSource({ kind: 'none' });
-                  setView('instruction');
-                }}>
-                ✕
-              </Button>
-            </div>
-          )}
-
-          <p>{s.idCapture.signatory}: {asignado?.nombre}</p>
-
-          <div className="digid-footer">
-            <Button variant="secondary" onClick={() => dispatch({ type: 'BACK' })}>
-              {s.idCapture.back}
-            </Button>
-            <Button disabled={source.kind === 'none' || submitting} onClick={() => void submit()}>
-              {s.idCapture.continue}
             </Button>
           </div>
         </>

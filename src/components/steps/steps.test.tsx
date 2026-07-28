@@ -275,7 +275,7 @@ describe('IdCaptureStep', () => {
     });
   });
 
-  it('sube el archivo con step=ine_frente y avanza', async () => {
+  it('sube el archivo con step=ine_frente y avanza, con el mismo preview unificado (título + "Archivo cargado")', async () => {
     const ctx = makeCtx();
     renderStep(<IdCaptureStep side="front" />, ctx);
     const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
@@ -283,6 +283,14 @@ describe('IdCaptureStep', () => {
       type: 'image/jpeg',
     });
     await userEvent.upload(input, file);
+
+    // Mismo layout que el fast-path de imagen guardada (Task 25): título +
+    // check informativo de origen ("Archivo cargado", sin score inventado)
+    // y sin el viejo botón "✕".
+    expect(screen.getByRole('heading', { name: es.scanUi.preview.frontTitle })).toBeInTheDocument();
+    expect(screen.getByText(es.scanUi.preview.uploadedCheck)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '✕' })).not.toBeInTheDocument();
+
     await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
     await vi.waitFor(() =>
       expect(ctx.api.saveFile).toHaveBeenCalledWith(
@@ -290,6 +298,15 @@ describe('IdCaptureStep', () => {
       ),
     );
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
+  });
+
+  it('"Repetir captura" tras subir un archivo regresa a la instrucción', async () => {
+    const ctx = makeCtx();
+    renderStep(<IdCaptureStep side="front" />, ctx);
+    const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
+    await userEvent.upload(input, new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'ine.jpg', { type: 'image/jpeg' }));
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.repeat }));
+    expect(screen.getByRole('heading', { name: es.scanUi.instruction.frontTitle })).toBeInTheDocument();
   });
 
   it('usa step=ine_reverso para el lado trasero', async () => {
@@ -430,7 +447,7 @@ describe('SelfieStep', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
-  it('sube el archivo con step=selfie y avanza (subida desde la instrucción)', async () => {
+  it('sube el archivo con step=selfie y avanza, con el mismo preview unificado (título + "Archivo cargado")', async () => {
     const ctx = makeCtx();
     renderStep(<SelfieStep />, ctx);
     const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
@@ -438,6 +455,14 @@ describe('SelfieStep', () => {
       type: 'image/jpeg',
     });
     await userEvent.upload(input, file);
+
+    // Mismo layout que el fast-path de selfie guardada (Task 25): título +
+    // check informativo de origen ("Archivo cargado", sin score inventado)
+    // y sin el viejo botón "✕".
+    expect(screen.getByRole('heading', { name: es.scanUi.preview.selfieTitle })).toBeInTheDocument();
+    expect(screen.getByText(es.scanUi.preview.uploadedCheck)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '✕' })).not.toBeInTheDocument();
+
     await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
     await vi.waitFor(() =>
       expect(ctx.api.saveFile).toHaveBeenCalledWith(
@@ -445,6 +470,15 @@ describe('SelfieStep', () => {
       ),
     );
     expect(ctx.dispatch).toHaveBeenCalledWith({ type: 'NEXT' });
+  });
+
+  it('"Repetir captura" tras subir una selfie regresa a la instrucción', async () => {
+    const ctx = makeCtx();
+    renderStep(<SelfieStep />, ctx);
+    const input = screen.getByTestId('digid-file-input') as HTMLInputElement;
+    await userEvent.upload(input, new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'selfie.jpg', { type: 'image/jpeg' }));
+    await userEvent.click(screen.getByRole('button', { name: es.scanUi.preview.repeat }));
+    expect(screen.getByRole('heading', { name: es.scanUi.selfie.title })).toBeInTheDocument();
   });
 
   it('muestra la selfie previa si el backend ya la tiene guardada (fast path, con el diseño del preview de captura)', async () => {

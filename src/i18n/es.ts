@@ -114,6 +114,7 @@ export const es = {
       subcopy: 'Revisa que la imagen se vea clara, completa y sin reflejos importantes.',
       savedSubtitle: 'Esta es la imagen guardada anteriormente. Puedes continuar con ella o repetir la captura.',
       savedCheck: 'Imagen guardada previamente',
+      uploadedCheck: 'Archivo cargado',
       legibleFront: 'Imagen legible',
       legibleBack: 'Códigos y datos visibles',
       complete: 'Documento completo',
