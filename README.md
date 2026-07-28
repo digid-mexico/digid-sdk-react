@@ -95,6 +95,14 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
 El playground hace proxy de /api, /storage y /docments a http://127.0.0.1:8000
 (backend Laravel local).
 
+Para probar la cámara desde un celular (getUserMedia exige HTTPS):
+
+    npm run dev:movil   # HTTPS autofirmado + expuesto en la red local
+
+Abre en el celular la URL "Network" que imprime Vite (p. ej.
+https://192.168.0.33:5199/?token=...), acepta la advertencia del certificado
+autofirmado y la cámara funcionará. Mac y celular deben estar en la misma red.
+
 ### Pendiente de verificar contra el backend real
 
 - `save_file` para `step=firma` envía el dataURL de la firma como string en el campo
