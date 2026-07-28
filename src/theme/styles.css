@@ -65,12 +65,18 @@
 }
 .digid-pdf-toolbar__sep { width: 1px; height: 20px; background: var(--digid-border); }
 .digid-sign-overlay { position: absolute; border: 3px dashed #5d5d5d; z-index: 5;
-  transform-origin: top left; }
-/* object-fit: fill (no "contain"): el backend estampa la imagen de firma
-   estirada a exactamente 37×24mm sobre el PDF final (FPDI/FPDF Image()), así
-   que la preview fiel también debe estirarla al rectángulo del overlay en
-   vez de preservar su relación de aspecto original. */
-.digid-sign-overlay img { width: 100%; height: 100%; object-fit: fill; }
+  transform-origin: top left; display: flex; justify-content: center; align-items: center; }
+/* La imagen de firma se ajusta por ALTURA del recuadro conservando su relación
+   de aspecto (el lienzo de firma es muy ancho; estirarlo al rectángulo 37×24
+   la aplastaba horizontalmente). El PNG tiene fondo transparente, así que los
+   márgenes vacíos que sobresalen a los lados del recuadro punteado no se ven —
+   solo el trazo, centrado y a escala legible. */
+.digid-sign-overlay img {
+  height: 100%;
+  width: auto;
+  max-width: none;
+  flex: none;
+}
 .digid-signature-canvas { width: 100%; height: 280px; touch-action: none;
   border: 1px solid var(--digid-border); border-radius: var(--digid-radius); }
 .digid-camera video, .digid-camera canvas, .digid-camera img { max-width: 100%; border-radius: var(--digid-radius); }
