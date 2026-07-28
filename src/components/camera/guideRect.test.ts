@@ -4,6 +4,7 @@ import {
   boxCenter,
   rectContainsPoint,
   rectFullyContains,
+  isInsideEllipse,
   ID_ASPECT,
   ID_WIDTH_FRAC,
   ID_MAX_HEIGHT_FRAC,
@@ -65,6 +66,30 @@ describe('rectContainsPoint', () => {
   it('false si el punto cae fuera', () => {
     expect(rectContainsPoint(rect, { x: 0.05, y: 0.35 })).toBe(false);
     expect(rectContainsPoint(rect, { x: 0.35, y: 0.61 })).toBe(false);
+  });
+});
+
+describe('isInsideEllipse', () => {
+  // Óvalo no circular para que un chequeo de rect-bounding (en vez de la
+  // elipse real) se note: centro (0.5, 0.5), rx=0.3, ry=0.1.
+  const guide = { x: 0.2, y: 0.4, width: 0.6, height: 0.2 };
+
+  it('true en el centro y en los vértices del eje mayor/menor', () => {
+    expect(isInsideEllipse({ x: 0.5, y: 0.5 }, guide)).toBe(true); // centro
+    expect(isInsideEllipse({ x: 0.2, y: 0.5 }, guide)).toBe(true); // borde eje x (rx)
+    expect(isInsideEllipse({ x: 0.5, y: 0.4 }, guide)).toBe(true); // borde eje y (ry)
+  });
+
+  it('false en una esquina de la caja delimitadora que cae fuera de la elipse real', () => {
+    // La esquina (0.2, 0.4) está dentro del rectángulo delimitador pero fuera
+    // de la elipse inscrita en él: si el chequeo usara rectContainsPoint en
+    // vez de la elipse real, esto pasaría incorrectamente.
+    expect(rectContainsPoint(guide, { x: 0.2, y: 0.4 })).toBe(true);
+    expect(isInsideEllipse({ x: 0.2, y: 0.4 }, guide)).toBe(false);
+  });
+
+  it('false claramente fuera de la caja delimitadora', () => {
+    expect(isInsideEllipse({ x: 0.9, y: 0.9 }, guide)).toBe(false);
   });
 });
 

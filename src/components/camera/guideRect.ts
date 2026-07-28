@@ -59,6 +59,23 @@ export function rectContainsPoint(rect: NormalizedBox, point: { x: number; y: nu
   );
 }
 
+/**
+ * True si `point` cae dentro de la elipse inscrita en `guide` (centrada en
+ * su caja, radios = mitad de ancho/alto). A diferencia de rectContainsPoint,
+ * evalúa la elipse real: relevante para la guía "face", que se dibuja y
+ * acepta como óvalo, no como rectángulo.
+ */
+export function isInsideEllipse(point: { x: number; y: number }, guide: NormalizedBox): boolean {
+  const rx = guide.width / 2;
+  const ry = guide.height / 2;
+  if (rx <= 0 || ry <= 0) return false;
+  const cx = guide.x + rx;
+  const cy = guide.y + ry;
+  const nx = (point.x - cx) / rx;
+  const ny = (point.y - cy) / ry;
+  return nx * nx + ny * ny <= 1;
+}
+
 /** True si `box` cae completamente dentro de `container`. */
 export function rectFullyContains(container: NormalizedBox, box: NormalizedBox): boolean {
   return (

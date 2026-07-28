@@ -1,5 +1,5 @@
 import type { NormalizedBox } from '../../detection/types';
-import { boxCenter, rectContainsPoint, rectFullyContains } from './guideRect';
+import { boxCenter, isInsideEllipse, rectContainsPoint, rectFullyContains } from './guideRect';
 
 /**
  * Predicados puros de aceptación de una detección contra la ventana guía.
@@ -7,9 +7,13 @@ import { boxCenter, rectContainsPoint, rectFullyContains } from './guideRect';
  * componente ni simular una cámara.
  */
 
-/** Selfie: el centro del rostro cae dentro del óvalo y su alto ocupa entre ~30% y ~90% del alto de la guía. */
+/**
+ * Selfie: el centro del rostro cae dentro del óvalo (elipse real inscrita en
+ * la guía, no su rectángulo delimitador — la guía "face" se dibuja y se
+ * percibe como óvalo) y su alto ocupa entre ~30% y ~90% del alto de la guía.
+ */
 export function acceptFaceSelfie(box: NormalizedBox, guide: NormalizedBox): boolean {
-  if (!rectContainsPoint(guide, boxCenter(box))) return false;
+  if (!isInsideEllipse(boxCenter(box), guide)) return false;
   const heightFrac = box.height / guide.height;
   return heightFrac >= 0.3 && heightFrac <= 0.9;
 }

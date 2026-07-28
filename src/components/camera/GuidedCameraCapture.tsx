@@ -28,7 +28,10 @@ interface Props {
 const DEFAULT_VIDEO_ASPECT = 4 / 3;
 const BARCODE_SAMPLE_WIDTH = 640;
 
-function roundedRectPath(x: number, y: number, w: number, h: number, r: number): string {
+// Exportadas (además de usarse internamente) para poder pinnear en pruebas
+// que las coordenadas de la máscara SVG coinciden exactamente con
+// guideRect(...)*100, sin reimplementar la aritmética en el test.
+export function roundedRectPath(x: number, y: number, w: number, h: number, r: number): string {
   const rr = Math.max(0, Math.min(r, w / 2, h / 2));
   return (
     `M${x + rr},${y} ` +
@@ -39,11 +42,11 @@ function roundedRectPath(x: number, y: number, w: number, h: number, r: number):
   );
 }
 
-function ellipsePath(cx: number, cy: number, rx: number, ry: number): string {
+export function ellipsePath(cx: number, cy: number, rx: number, ry: number): string {
   return `M${cx - rx},${cy} A${rx},${ry} 0 1 0 ${cx + rx},${cy} A${rx},${ry} 0 1 0 ${cx - rx},${cy} Z`;
 }
 
-const OUTER_PATH = 'M0,0 H100 V100 H0 Z';
+export const OUTER_PATH = 'M0,0 H100 V100 H0 Z';
 const CORNER_LEN = 8;
 
 function cornerAccentPaths(x: number, y: number, w: number, h: number): string[] {
@@ -109,7 +112,13 @@ export function GuidedCameraCapture({
     }
   }, [stream]);
 
-  function handleLoadedMetadata() {
+  // Actualiza el aspecto del video tanto al cargar metadatos como ante un
+  // "resize" del track a mitad de sesión (p.ej. el navegador re-orienta el
+  // frame al rotar el teléfono): sin esto, el aspecto del stage y de la
+  // máscara SVG quedan desincronizados del video real, `object-fit: cover`
+  // empieza a recortar, y el marco visible deja de coincidir con la región
+  // que en verdad usan accept()/el recorte de captura.
+  function handleVideoDimensionsChange() {
     const video = videoRef.current;
     if (video && video.videoWidth > 0 && video.videoHeight > 0) {
       setVideoAspect(video.videoWidth / video.videoHeight);
@@ -199,7 +208,8 @@ export function GuidedCameraCapture({
               autoPlay
               playsInline
               muted
-              onLoadedMetadata={handleLoadedMetadata}
+              onLoadedMetadata={handleVideoDimensionsChange}
+              onResize={handleVideoDimensionsChange}
               style={mirror ? { transform: 'scaleX(-1)' } : undefined}
             />
             <svg
@@ -218,6 +228,7 @@ export function GuidedCameraCapture({
                     stroke="var(--digid-primary)"
                     strokeWidth={1.5}
                     strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
                   />
                 ))}
               {guide === 'face' && (
@@ -229,6 +240,7 @@ export function GuidedCameraCapture({
                   fill="none"
                   stroke="var(--digid-primary)"
                   strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
                 />
               )}
             </svg>
@@ -248,7 +260,14 @@ export function GuidedCameraCapture({
           </div>
           <p role="status" aria-live="polite" className="digid-guided-camera__status">
             {statusText}
-            {auto.status === 'countdown' && ` ${Math.round(auto.countdownProgress * 100)}%`}
+            {auto.status === 'countdown' && (
+              // aria-hidden: el porcentaje cambia ~5 veces por segundo; que
+              // formara parte del texto accesible del role=status haría que
+              // el lector de pantalla lo anunciara a esa frecuencia. El
+              // anillo de progreso ya lo refleja visualmente y el texto
+              // "Capturando…" (sí anunciado) ya comunica el estado.
+              <span aria-hidden="true"> {Math.round(auto.countdownProgress * 100)}%</span>
+            )}
           </p>
           <div className="digid-footer">
             {onCancel && (

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, fireEvent } from '@testing-library/react';
-import { GuidedCameraCapture } from './GuidedCameraCapture';
+import { GuidedCameraCapture, roundedRectPath, ellipsePath, OUTER_PATH } from './GuidedCameraCapture';
 import { I18nProvider, es } from '../../i18n';
 import { FlowContext, type FlowContextValue } from '../../core/FlowContext';
 import { guideRect } from './guideRect';
@@ -33,6 +33,22 @@ function setVideoDims(container: HTMLElement, width = 640, height = 480) {
   if (!video) throw new Error('no <video> en el contenedor');
   Object.defineProperty(video, 'videoWidth', { value: width, configurable: true });
   Object.defineProperty(video, 'videoHeight', { value: height, configurable: true });
+}
+
+/** El `d` esperado de la máscara SVG para `guide`/`videoAspect`, calculado con
+ * las mismas funciones puras que usa el componente (no una reimplementación),
+ * para poder pinnear que las coordenadas realmente vienen de guideRect(...)*100. */
+function expectedMaskPathD(guide: 'id' | 'face', videoAspect: number): string {
+  const rect = guideRect(guide, videoAspect);
+  const gx = rect.x * 100;
+  const gy = rect.y * 100;
+  const gw = rect.width * 100;
+  const gh = rect.height * 100;
+  const innerPath =
+    guide === 'id'
+      ? roundedRectPath(gx, gy, gw, gh, 4)
+      : ellipsePath(gx + gw / 2, gy + gh / 2, gw / 2, gh / 2);
+  return `${OUTER_PATH} ${innerPath}`;
 }
 
 async function flush(ms: number) {
@@ -270,5 +286,65 @@ describe('GuidedCameraCapture', () => {
     await flush(0);
 
     expect(screen.getByRole('alert')).toHaveTextContent(es.errors.camera);
+  });
+
+  it('el aspecto del stage y la máscara SVG coinciden exactamente con guideRect(...)*100 (guide="id")', async () => {
+    const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
+    vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);
+
+    const { container } = renderGuided({ guide: 'id', detector: 'face-small' });
+    const video = container.querySelector('video')!;
+    setVideoDims(container, 1280, 720); // 16:9
+    fireEvent.loadedMetadata(video);
+    await flush(400);
+
+    const stage = container.querySelector<HTMLDivElement>('.digid-guided-camera__stage')!;
+    expect(stage.style.aspectRatio).toBe(String(1280 / 720));
+
+    const maskPath = container.querySelector('svg.digid-guided-camera__mask path')!;
+    expect(maskPath).toHaveAttribute('d', expectedMaskPathD('id', 1280 / 720));
+  });
+
+  it('el aspecto del stage y la máscara SVG coinciden exactamente con guideRect(...)*100 (guide="face")', async () => {
+    const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
+    vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);
+
+    const { container } = renderGuided({ guide: 'face', detector: 'face-selfie' });
+    const video = container.querySelector('video')!;
+    setVideoDims(container, 720, 1280); // 9:16 (selfie en retrato)
+    fireEvent.loadedMetadata(video);
+    await flush(400);
+
+    const stage = container.querySelector<HTMLDivElement>('.digid-guided-camera__stage')!;
+    expect(stage.style.aspectRatio).toBe(String(720 / 1280));
+
+    const maskPath = container.querySelector('svg.digid-guided-camera__mask path')!;
+    expect(maskPath).toHaveAttribute('d', expectedMaskPathD('face', 720 / 1280));
+  });
+
+  it('una rotación a mitad de sesión (resize del track) resincroniza el aspecto del stage y la máscara', async () => {
+    const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
+    vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);
+
+    const { container } = renderGuided({ guide: 'id', detector: 'face-small' });
+    const video = container.querySelector('video')!;
+
+    // Arranca en horizontal (16:9).
+    setVideoDims(container, 1280, 720);
+    fireEvent.loadedMetadata(video);
+    await flush(400);
+    const stage = container.querySelector<HTMLDivElement>('.digid-guided-camera__stage')!;
+    expect(stage.style.aspectRatio).toBe(String(1280 / 720));
+
+    // El usuario rota el teléfono: el navegador re-orienta el track y emite
+    // "resize" con las nuevas dimensiones (sin loadedmetadata de nuevo).
+    setVideoDims(container, 720, 1280);
+    fireEvent.resize(video);
+
+    expect(stage.style.aspectRatio).toBe(String(720 / 1280));
+    const maskPath = container.querySelector('svg.digid-guided-camera__mask path')!;
+    expect(maskPath).toHaveAttribute('d', expectedMaskPathD('id', 720 / 1280));
+
+    await flush(400); // deja asentar el resto de efectos antes de terminar el test
   });
 });

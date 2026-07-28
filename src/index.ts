@@ -18,6 +18,8 @@ export { PlaceSignaturesStep } from './components/steps/PlaceSignaturesStep';
 export { CompletedStep } from './components/steps/CompletedStep';
 export { PdfViewer } from './components/pdf/PdfViewer';
 export { SignaturePad } from './components/signature/SignaturePad';
+export { GuidedCameraCapture, type DetectorKind } from './components/camera/GuidedCameraCapture';
+export type { GuideKind } from './components/camera/guideRect';
 
 // Infraestructura de detección on-device para captura guiada (Task 21 la
 // consume desde las UIs de INE/selfie).
