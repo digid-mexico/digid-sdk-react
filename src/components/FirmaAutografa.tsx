@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ApiClient } from '../api/client';
+import { ApiClient, type TokenTransport } from '../api/client';
 import { FlowContext } from '../core/FlowContext';
 import { useAutografaFlow } from '../core/useAutografaFlow';
 import { ThemeProvider, sanitizeColor, type DigidTheme } from '../theme/ThemeProvider';
@@ -20,6 +20,13 @@ import { CompletedStep } from './steps/CompletedStep';
 export interface FirmaAutografaProps {
   token: string;
   baseUrl?: string;
+  /**
+   * Cómo viaja el token hacia el backend. Default `'both'` (header + query,
+   * compatible con el backend actual). Cámbialo a `'header'` en cuanto el
+   * backend lea `X-Digid-Token`: así el token deja de quedar escrito en los
+   * logs de acceso, proxy, WAF y CDN. Ver `TokenTransport`.
+   */
+  tokenTransport?: TokenTransport;
   theme?: DigidTheme;
   termsUrl?: string;
   /** URLs configurables para los detectores on-device de auto-captura (MediaPipe/zxing). */
@@ -32,10 +39,14 @@ export interface FirmaAutografaProps {
 }
 
 export function FirmaAutografa({
-  token, baseUrl = '', theme, termsUrl = 'https://www.digid.com.mx/terminos-condiciones',
+  token, baseUrl = '', tokenTransport,
+  theme, termsUrl = 'https://www.digid.com.mx/terminos-condiciones',
   detectionAssets, scanAssets, onComplete, onExit, onError,
 }: FirmaAutografaProps) {
-  const api = useMemo(() => new ApiClient({ baseUrl, token }), [baseUrl, token]);
+  const api = useMemo(
+    () => new ApiClient({ baseUrl, token, tokenTransport }),
+    [baseUrl, token, tokenTransport],
+  );
   const { state, dispatch, asignado, refreshAsignado } = useAutografaFlow(api);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ kind: 'success' | 'error' | 'warning'; message: string } | null>(null);

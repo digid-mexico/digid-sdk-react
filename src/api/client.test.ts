@@ -47,6 +47,74 @@ describe('ApiClient.startAutografa', () => {
   });
 });
 
+// El token en la query string queda escrito en logs de acceso, proxy, WAF y
+// CDN. `tokenTransport` permite migrarlo a un header; 'both' es el escalón de
+// transición que funciona contra el backend actual y contra uno ya migrado.
+describe('ApiClient tokenTransport', () => {
+  it("default 'both': manda el token en header Y en la query (compatible con el backend legacy)", async () => {
+    server.use(
+      http.get(`${BASE}/api/archivofirma/start_autografa`, ({ request }) => {
+        expect(new URL(request.url).searchParams.get('token')).toBe('tok123');
+        expect(request.headers.get('x-digid-token')).toBe('tok123');
+        return HttpResponse.json({ Success: true, Data: { document: { id: 1 } } });
+      }),
+    );
+    await new ApiClient({ baseUrl: BASE, token: 'tok123' }).startAutografa();
+  });
+
+  it("'header': el token NO aparece en la URL (deja de llegar a los logs)", async () => {
+    server.use(
+      http.get(`${BASE}/api/archivofirma/start_autografa`, ({ request }) => {
+        expect(new URL(request.url).search).toBe('');
+        expect(request.url).not.toContain('tok123');
+        expect(request.headers.get('x-digid-token')).toBe('tok123');
+        return HttpResponse.json({ Success: true, Data: { document: { id: 1 } } });
+      }),
+      http.get(`${BASE}/api/asignado/autografa`, ({ request }) => {
+        expect(request.url).not.toContain('tok123');
+        expect(request.headers.get('x-digid-token')).toBe('tok123');
+        return HttpResponse.json({ Success: true, Data: { nombre: 'Juan' } });
+      }),
+    );
+    const c = new ApiClient({ baseUrl: BASE, token: 'tok123', tokenTransport: 'header' });
+    await c.startAutografa();
+    await c.getAsignado();
+  });
+
+  it("'query': comportamiento histórico exacto, sin header (evita el preflight de CORS)", async () => {
+    server.use(
+      http.get(`${BASE}/api/archivofirma/start_autografa`, ({ request }) => {
+        expect(new URL(request.url).searchParams.get('token')).toBe('tok123');
+        expect(request.headers.get('x-digid-token')).toBeNull();
+        return HttpResponse.json({ Success: true, Data: { document: { id: 1 } } });
+      }),
+    );
+    await new ApiClient({ baseUrl: BASE, token: 'tok123', tokenTransport: 'query' }).startAutografa();
+  });
+
+  it('los POST también llevan el header, conservando el token en el body', async () => {
+    server.use(
+      http.post(`${BASE}/api/archivofirma/finish_autografa`, async ({ request }) => {
+        expect(request.headers.get('x-digid-token')).toBe('tok123');
+        expect((await request.formData()).get('token')).toBe('tok123');
+        return HttpResponse.json({ Success: true });
+      }),
+    );
+    await new ApiClient({ baseUrl: BASE, token: 'tok123' }).finishAutografa(null);
+  });
+
+  it('forgot_pwd_rl no recibe el token: no lo necesita y no debe cargarlo', async () => {
+    server.use(
+      http.post(`${BASE}/api/firmante/forgot_pwd_rl`, async ({ request }) => {
+        expect(request.headers.get('x-digid-token')).toBeNull();
+        expect(await request.json()).toEqual({ email: 'rl@example.com' });
+        return HttpResponse.json({ Success: true });
+      }),
+    );
+    await new ApiClient({ baseUrl: BASE, token: 'tok123' }).forgotPwdRl('rl@example.com');
+  });
+});
+
 describe('ApiClient.saveFile', () => {
   it('envía multipart con token, step e idFirma', async () => {
     server.use(

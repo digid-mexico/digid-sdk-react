@@ -1,6 +1,23 @@
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 export const MAX_IMAGE_DIMENSION = 1920; // px, lado mayor tras downscale
 
+/**
+ * Tope de píxeles ya decodificados. MAX_IMAGE_BYTES NO acota la memoria que
+ * cuesta dibujar la imagen: un JPEG de pocos MB puede decodificarse a cientos
+ * de megapíxeles (bomba de descompresión), y un canvas RGBA cuesta 4 bytes por
+ * píxel. 50 MP (~200 MB de canvas) deja pasar la foto de cualquier celular
+ * actual (48 MP) y corta los tamaños que tumban la pestaña del firmante.
+ */
+export const MAX_IMAGE_PIXELS = 50_000_000;
+
+export const IMAGE_TOO_LARGE_MESSAGE =
+  'La imagen tiene una resolución demasiado alta. Use una foto más pequeña.';
+
+/** ¿Las dimensiones ya decodificadas caben en el presupuesto de MAX_IMAGE_PIXELS? */
+export function isDecodedSizeAllowed(width: number, height: number): boolean {
+  return width > 0 && height > 0 && width * height <= MAX_IMAGE_PIXELS;
+}
+
 export function sniffImageType(bytes: Uint8Array): 'image/jpeg' | 'image/png' | null {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff)
     return 'image/jpeg';

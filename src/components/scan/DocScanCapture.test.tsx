@@ -263,6 +263,91 @@ describe('DocScanCapture', () => {
     }
   });
 
+  // Esta ruta de subida (el botón de galería del escáner) se saltaba
+  // validateImageFile: aceptaba cualquier archivo y lo dibujaba a resolución
+  // nativa, sin magic bytes ni tope de 10 MB ni tope de píxeles.
+  it('rechaza un archivo cuyos magic bytes no son JPEG/PNG sin decodificarlo', async () => {
+    const OriginalImage = global.Image;
+    // Se stubea Image (igual que en el test de subida exitosa) para que el
+    // test no pase por vacuidad: con el Image real de jsdom, onload nunca
+    // dispara y la detección tampoco correría sin la validación.
+    // @ts-expect-error stub deliberadamente simplificado para el test
+    global.Image = class {
+      onload: (() => void) | null = null;
+      naturalWidth = 640;
+      naturalHeight = 400;
+      set src(_v: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    };
+
+    try {
+      vi.mocked(docScanReady).mockReturnValue(true);
+      vi.mocked(detectDocumentStill).mockResolvedValue({
+        corners: FAKE_CORNERS, frame: null, aspect: 1.586, rotated: false,
+      });
+
+      const { container } = renderCapture({ side: 'back' });
+      prepareVideo(container);
+      await flush(50);
+      vi.mocked(detectDocumentStill).mockClear();
+
+      const fileInput = screen.getByTestId('digid-scan-file-input') as HTMLInputElement;
+      // Extensión y MIME dicen JPEG; el contenido no lo es. El `accept` del
+      // input no obliga nada, así que solo los magic bytes lo detectan.
+      const file = new File([new Uint8Array([0x00, 0x01, 0x02])], 'ine.jpg', { type: 'image/jpeg' });
+      await act(async () => {
+        Object.defineProperty(fileInput, 'files', { value: [file], configurable: true });
+        fireEvent.change(fileInput);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await flush(50);
+
+      expect(detectDocumentStill).not.toHaveBeenCalled();
+      expect(screen.queryByAltText('Documento capturado')).toBeNull();
+    } finally {
+      global.Image = OriginalImage;
+    }
+  });
+
+  it('rechaza una imagen que decodifica por encima del tope de píxeles', async () => {
+    const OriginalImage = global.Image;
+    // JPEG válido por magic bytes, pero que decodifica a 900 MP: pasa
+    // validateImageFile y solo el tope de píxeles lo detiene antes del canvas.
+    // @ts-expect-error stub deliberadamente simplificado para el test
+    global.Image = class {
+      onload: (() => void) | null = null;
+      naturalWidth = 30000;
+      naturalHeight = 30000;
+      set src(_v: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    };
+
+    try {
+      vi.mocked(docScanReady).mockReturnValue(true);
+
+      const { container } = renderCapture({ side: 'back' });
+      prepareVideo(container);
+      await flush(50);
+      vi.mocked(detectDocumentStill).mockClear();
+
+      const fileInput = screen.getByTestId('digid-scan-file-input') as HTMLInputElement;
+      const file = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'bomba.jpg', { type: 'image/jpeg' });
+      await act(async () => {
+        Object.defineProperty(fileInput, 'files', { value: [file], configurable: true });
+        fireEvent.change(fileInput);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await flush(50);
+
+      expect(detectDocumentStill).not.toHaveBeenCalled();
+      expect(screen.queryByAltText('Documento capturado')).toBeNull();
+    } finally {
+      global.Image = OriginalImage;
+    }
+  });
+
   it('cancelar cierra la cámara y llama a onCancel', async () => {
     const { container, props } = renderCapture();
     prepareVideo(container);

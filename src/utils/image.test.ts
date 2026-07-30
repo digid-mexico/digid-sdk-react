@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { sniffImageType, validateImageFile, dataUrlToBlob } from './image';
+import {
+  sniffImageType, validateImageFile, dataUrlToBlob, isDecodedSizeAllowed, MAX_IMAGE_PIXELS,
+} from './image';
 
 const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -37,6 +39,23 @@ describe('validateImageFile', () => {
   it('acepta un PNG válido dentro del límite', async () => {
     const file = new File([PNG_BYTES], 'ine.png', { type: 'image/png' });
     await expect(validateImageFile(file)).resolves.toBe('image/png');
+  });
+});
+
+describe('isDecodedSizeAllowed', () => {
+  it('acepta la foto de un celular actual (48 MP)', () => {
+    expect(isDecodedSizeAllowed(8000, 6000)).toBe(true);
+  });
+  it('rechaza una bomba de descompresión (pocos bytes, cientos de MP)', () => {
+    // 30000x30000 = 900 MP => ~3.6 GB de canvas RGBA
+    expect(isDecodedSizeAllowed(30000, 30000)).toBe(false);
+  });
+  it('acepta exactamente el tope y rechaza un píxel más', () => {
+    expect(isDecodedSizeAllowed(MAX_IMAGE_PIXELS, 1)).toBe(true);
+    expect(isDecodedSizeAllowed(MAX_IMAGE_PIXELS + 1, 1)).toBe(false);
+  });
+  it('rechaza dimensiones degeneradas (imagen que no decodificó)', () => {
+    expect(isDecodedSizeAllowed(0, 0)).toBe(false);
   });
 });
 

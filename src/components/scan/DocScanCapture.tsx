@@ -20,6 +20,9 @@ import { useStrings } from '../../i18n';
 import { FlowContext } from '../../core/FlowContext';
 import { isMobileDevice, shouldMirrorPreview } from '../../utils/device';
 import {
+  validateImageFile, isDecodedSizeAllowed, IMAGE_TOO_LARGE_MESSAGE,
+} from '../../utils/image';
+import {
   initDocScan,
   docScanReady,
   detectDocument,
@@ -516,44 +519,63 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
 
   const processFile = useCallback(
     (file: File) => {
-      const img = new Image();
-      img.onload = () => {
-        void (async () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          canvas.getContext('2d', { willReadFrequently: true })!.drawImage(img, 0, 0);
-          // La detección nunca corre a resolución nativa de la foto: la
-          // escalera de detectDocumentStill baja a escalas calibradas.
-          const detection = docScanReady() ? await detectDocumentStill(canvas) : null;
-          const docCanvas = detection ? await extractStillOriented(canvas, detection) : null;
-          const sourceCanvas = docCanvas || canvas;
-          const assessed = docScanReady() ? await assessDocQuality(sourceCanvas) : null;
-          const heuristic = assessed ? null : analyzeDocumentQuality(sourceCanvas, side);
-          const enhanced = createEnhancedDocumentImage(sourceCanvas);
-          close();
-          stopTickLoop();
-          setPreview({
-            dataUrl: enhanced.dataUrl,
-            score: assessed ? assessed.score : heuristic!.score,
-            hint: assessed ? assessed.hint : heuristic!.hint,
-            ok: assessed ? assessed.ok : true,
-            source: cam.sourceFile,
-          });
-          setPhase('preview');
+      void (async () => {
+        // Mismas garantías que la subida desde IdCaptureStep/SelfieStep
+        // (magic bytes + tope de 10 MB): esta ruta también acepta un archivo
+        // elegido por el usuario, así que no puede confiar en la extensión ni
+        // en el `accept` del input, que el navegador no obliga.
+        try {
+          await validateImageFile(file);
+        } catch (e) {
+          flow?.notify('error', e instanceof Error ? e.message : s.errors.generic);
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          // El tope de bytes no acota la memoria del canvas: se rechaza aquí,
+          // ya conocidas las dimensiones reales, antes del primer drawImage.
+          if (!isDecodedSizeAllowed(img.naturalWidth, img.naturalHeight)) {
+            URL.revokeObjectURL(img.src);
+            flow?.notify('error', IMAGE_TOO_LARGE_MESSAGE);
+            return;
+          }
+          void (async () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            canvas.getContext('2d', { willReadFrequently: true })!.drawImage(img, 0, 0);
+            // La detección nunca corre a resolución nativa de la foto: la
+            // escalera de detectDocumentStill baja a escalas calibradas.
+            const detection = docScanReady() ? await detectDocumentStill(canvas) : null;
+            const docCanvas = detection ? await extractStillOriented(canvas, detection) : null;
+            const sourceCanvas = docCanvas || canvas;
+            const assessed = docScanReady() ? await assessDocQuality(sourceCanvas) : null;
+            const heuristic = assessed ? null : analyzeDocumentQuality(sourceCanvas, side);
+            const enhanced = createEnhancedDocumentImage(sourceCanvas);
+            close();
+            stopTickLoop();
+            setPreview({
+              dataUrl: enhanced.dataUrl,
+              score: assessed ? assessed.score : heuristic!.score,
+              hint: assessed ? assessed.hint : heuristic!.hint,
+              ok: assessed ? assessed.ok : true,
+              source: cam.sourceFile,
+            });
+            setPhase('preview');
+            URL.revokeObjectURL(img.src);
+          })();
+        };
+        // Archivo corrupto/formato no decodificable: sin este handler, el
+        // object URL nunca se revoca (fuga) y la UI se queda pegada sin
+        // preview ni aviso alguno. Se notifica si hay FlowContext disponible
+        // (uso normal dentro de <FirmaAutografa>); fuera de él, al menos no
+        // hay fuga y el firmante puede reintentar con el botón u otro archivo.
+        img.onerror = () => {
           URL.revokeObjectURL(img.src);
-        })();
-      };
-      // Archivo corrupto/formato no decodificable: sin este handler, el
-      // object URL nunca se revoca (fuga) y la UI se queda pegada sin
-      // preview ni aviso alguno. Se notifica si hay FlowContext disponible
-      // (uso normal dentro de <FirmaAutografa>); fuera de él, al menos no
-      // hay fuga y el firmante puede reintentar con el botón u otro archivo.
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        flow?.notify('error', s.errors.generic);
-      };
-      img.src = URL.createObjectURL(file);
+          flow?.notify('error', s.errors.generic);
+        };
+        img.src = URL.createObjectURL(file);
+      })();
     },
     [extractStillOriented, close, stopTickLoop, side, cam.sourceFile, flow, s.errors.generic],
   );
@@ -673,7 +695,9 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          // Igual que los inputs de IdCaptureStep/SelfieStep: solo los dos
+          // formatos que validateImageFile acepta por magic bytes.
+          accept="image/png,image/jpeg"
           hidden
           data-testid="digid-scan-file-input"
           onChange={(e) => {

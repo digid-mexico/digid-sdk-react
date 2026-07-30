@@ -1,6 +1,6 @@
 export { FirmaAutografa, type FirmaAutografaProps } from './components/FirmaAutografa';
 export { useAutografaFlow } from './core/useAutografaFlow';
-export { ApiClient, type ApiClientOptions } from './api/client';
+export { ApiClient, type ApiClientOptions, type TokenTransport } from './api/client';
 export { flowReducer, initialFlowState, computeStepOrder } from './core/flowReducer';
 export type { FlowState, FlowStep, FlowAction, ExitReason } from './core/flowReducer';
 export { DigidError } from './types/api';
