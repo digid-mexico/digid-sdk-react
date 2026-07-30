@@ -18,15 +18,36 @@ npm install @digid-sdk/firma-autografa-react
 React >= 18 y React DOM >= 18 son peer dependencies: deben existir en tu proyecto,
 el SDK no los instala ni los empaqueta.
 
-Además de importar el componente, hay **dos pasos de instalación que no son
-opcionales** si quieres el flujo completo:
+Además de instalar el paquete hay **dos pasos más**, y conviene no saltárselos:
 
-1. Importar la hoja de estilos (`@digid-sdk/firma-autografa-react/styles.css`); sin ella
-   el SDK se renderiza sin ningún estilo.
-2. Copiar la carpeta `scan-assets/` del paquete a tu directorio de estáticos, porque
-   el Web Worker de escaneo de INE exige mismo origen y no puede servirse desde un
-   CDN. Si no lo haces el flujo no se rompe, pero los pasos de INE se degradan a
-   captura manual (ver [sección 1.3](docs/GUIA-INTEGRACION.md#13-escaneo-de-documentos-ine)).
+**1. Importar la hoja de estilos.** Sin ella el SDK se renderiza sin ningún formato.
+
+```ts
+import '@digid-sdk/firma-autografa-react/styles.css';
+```
+
+**2. Copiar `scan-assets/` a tu directorio de estáticos.**
+
+```bash
+cp -R node_modules/@digid-sdk/firma-autografa-react/scan-assets public/digid-scan
+```
+
+Es el escáner de INE (OpenCV en un Web Worker). Hay que copiarlo porque
+`new Worker()` exige **mismo origen** y el navegador no permite construirlo desde un
+CDN — a diferencia de los modelos de la selfie, que sí se sirven remotos.
+
+Como `node_modules` no se versiona, engancha la copia a tu `postinstall` para que se
+repita en cada instalación:
+
+```json
+"postinstall": "cp -R node_modules/@digid-sdk/firma-autografa-react/scan-assets public/digid-scan"
+```
+
+Si lo omites **el flujo de firma sigue funcionando**: los pasos de INE se degradan a
+captura manual, sin detección en vivo ni corrección de perspectiva, y la imagen de la
+identificación se guarda como haya quedado dentro del marco. La selfie no se ve
+afectada. El detalle y cómo verificar que quedó bien están en la
+[sección 1.3 de la guía](docs/GUIA-INTEGRACION.md#13-escaneo-de-documentos-ine).
 
 ## Uso
 

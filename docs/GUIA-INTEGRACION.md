@@ -165,12 +165,50 @@ sirve estáticos desde otra ruta, pásasela vía la prop `scanAssets`:
 (`./opencv.js`), así que basta con que ambos archivos queden en la misma carpeta —
 no hace falta configurar la URL de `opencv.js` por separado.
 
-**Si no sirves `scan-assets/`** (lo olvidaste, tu CSP lo bloquea, o el navegador no
-soporta el worker/WASM), el SDK lo detecta —espera unos segundos a que el worker
-quede listo— y se degrada automáticamente a captura manual: el marco guía sigue
-visible y el firmante puede seguir capturando con el botón o subiendo un archivo; solo
-se pierden el recorte automático y la detección en vivo. El flujo de firma nunca se
-bloquea por esto.
+> **¿Por qué hay que copiarlos y no se sirven desde un CDN, como los modelos de la
+> sección 1.2?** Porque `scan-worker.js` es un Web Worker, y `new Worker(url)` exige
+> **mismo origen**: el navegador rechaza construir un worker desde otro dominio. Es
+> una regla del navegador, no una elección del SDK. Los modelos de MediaPipe sí
+> pueden venir de un CDN precisamente porque no son workers.
+
+#### Cómo verificar que quedó bien
+
+Abre la consola del navegador y entra al paso de INE. Si ves alguno de estos avisos,
+el worker **no** está cargando:
+
+```
+Worker de escaneo no disponible.
+OpenCV no inicializo en el worker.
+Worker de escaneo fallo.
+```
+
+Sin avisos, el escáner está activo: lo confirmas visualmente porque el marco resalta
+el contorno del documento en vivo y la captura se dispara sola al encuadrarlo.
+
+Comprobación directa de que los archivos se sirven:
+
+```bash
+curl -I http://localhost:5200/digid-scan/scan-worker.js   # debe dar 200
+curl -I http://localhost:5200/digid-scan/opencv.js        # debe dar 200
+```
+
+#### Qué pasa exactamente si no lo sirves
+
+El SDK lo detecta —espera unos segundos a que el worker quede listo— y se degrada
+solo. **El flujo de firma nunca se bloquea por esto**, pero conviene tener claro el
+alcance exacto:
+
+| | Con `scan-assets/` | Sin `scan-assets/` |
+|---|---|---|
+| **INE frente/reverso** | Detecta el contorno en vivo, captura sola al encuadrar y recorta el documento corrigiendo la perspectiva | Sin detección ni disparo automático. La captura manual recorta **el rectángulo del marco tal cual**: si la credencial estaba inclinada, la imagen guardada queda inclinada |
+| **Selfie** | Sin cambio | **Sin cambio** — usa MediaPipe (sección 1.2), que sí viene de CDN y no depende de esta carpeta |
+| **Subir archivo** | Detecta y recorta el documento dentro de la foto | Se sube la foto tal cual |
+| **Completar la firma** | ✅ | ✅ |
+
+En resumen: lo que se pierde es **calidad de la imagen de la identificación**, no
+funcionalidad. Para un proceso de verificación de identidad eso importa —una INE
+torcida o con fondo alrededor es más difícil de validar—, así que vale la pena
+hacer el paso aunque no sea bloqueante.
 
 ---
 
@@ -545,6 +583,9 @@ sección 1.2) sin romper el resto del flujo — igual que el escáner de INE si
 | `onError` inmediato con código `NETWORK` y errores CORS en consola | Tu dominio no está en la lista de orígenes permitidos de Digid | Solicita a Digid el alta de tu dominio exacto (esquema + subdominio). |
 | `onError` con `INVALID_TOKEN` | Token mal copiado, vencido, o proceso ya cerrado | Verifica que pasas el token completo y que el documento sigue vigente. |
 | La cámara no abre | Página servida sin HTTPS, o permiso denegado | Sirve por HTTPS; el firmante siempre puede subir archivo como alternativa. |
+| En INE no hay detección en vivo ni captura automática, y en consola aparece "Worker de escaneo no disponible" | `scan-assets/` no se está sirviendo en la URL que espera el SDK | Copia la carpeta (`cp -R node_modules/@digid-sdk/firma-autografa-react/scan-assets public/digid-scan`) y comprueba que `/digid-scan/scan-worker.js` responde 200. Si la sirves en otra ruta, pásala en `scanAssets.workerUrl` (ver [sección 1.3](#13-escaneo-de-documentos-ine)). |
+| Funcionaba en local y tras desplegar dejó de funcionar el escáner | `npm ci` borró `node_modules` y con él la copia manual de `scan-assets/` | Engancha la copia al `postinstall` en vez de hacerla a mano. |
+| La selfie sí captura sola pero la INE no | Son dos mecanismos distintos: la selfie usa MediaPipe (CDN) y la INE el worker de OpenCV (local) | El síntoma apunta a `scan-assets/`, no a `detectionAssets`. |
 | El PDF no se muestra (mensaje de error del visor) | Worker de pdf.js no resuelto (build CJS) o PDF inaccesible | Ver sección 10.2; revisa en la pestaña Red si `/storage/files/...` responde 200. |
 | El SDK muestra directamente la pantalla de éxito | El firmante ya había completado el proceso | Comportamiento esperado (estado del proceso en Digid). |
 | Los colores de mi `theme` no se aplican | Tu cuenta tiene estilos de marca configurados en Digid | Los estilos de la plataforma tienen prioridad; ajústalos en Digid o pide su retiro. |
@@ -559,7 +600,8 @@ sección 1.2) sin romper el resto del flujo — igual que el escáner de INE si
 - [ ] Manejo implementado de los tres callbacks (`onComplete`, `onExit`, `onError`) con navegación/pantallas propias.
 - [ ] Prueba completa en un móvil real: cámara trasera para INE, firma con el dedo.
 - [ ] Prueba del caso "enlace ya utilizado" (volver a abrir un token ya firmado).
-- [ ] `scan-assets/` copiada a tu directorio de estáticos y accesible en la URL configurada (ver [sección 1.3](#13-escaneo-de-documentos-ine)); sin esto, la INE funciona pero sin recorte automático.
+- [ ] `scan-assets/` copiada a tu directorio de estáticos y **verificada en el navegador**: entra al paso de INE y confirma que la consola no muestra "Worker de escaneo no disponible" (ver [sección 1.3](#13-escaneo-de-documentos-ine)). Sin esto la INE funciona, pero se guarda sin recorte ni corrección de perspectiva.
+- [ ] La copia de `scan-assets/` enganchada al `postinstall`, para que sobreviva a un despliegue limpio (`npm ci` borra y reinstala `node_modules`).
 - [ ] CSP verificada si tu aplicación la define.
 - [ ] El token nunca aparece en logs del cliente ni en URLs compartibles innecesariamente.
 - [ ] `tokenTransport="header"` activado una vez que el backend acepta `X-Digid-Token` (ver [sección 5.1](#51-cómo-viaja-el-token-tokentransport)); con el default `'both'` el token sigue viajando también en la query y por tanto sigue llegando a los logs de acceso.
