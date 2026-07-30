@@ -53,7 +53,10 @@
 .digid-pdf--with-toolbar { border-top-left-radius: 0; border-top-right-radius: 0; }
 .digid-pdf__pages { position: relative; display: flex; flex-direction: column; align-items: stretch; }
 .digid-pdf-toolbar {
-  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  /* wrap: los ~10 controles (zoom, ajuste, paginación) no caben en el ancho
+     de la columna en móvil y desbordaban el contenedor generando scroll
+     horizontal; al envolver, pasan a dos filas. */
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px;
   border: 1px solid var(--digid-border); border-radius: 8px 8px 0 0;
   background: #f9fafb; font-size: 14px;
 }
@@ -136,22 +139,44 @@
 /* --- Start step (revisión del documento) --- */
 .digid-start__header {
   width: 100%; padding: 16px 0; border-bottom: 1px solid var(--digid-border);
-  font-size: 24px; font-weight: 600; line-height: 30px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+}
+.digid-start__title { font-size: 24px; font-weight: 600; line-height: 30px; }
+/* Identidad de quien firma, como referencia de contexto: secundaria frente al
+   título, y se recorta antes que él si el nombre es largo. */
+.digid-start__signer {
+  font-size: 14px; font-weight: 500; color: var(--digid-gray);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .digid-start__columns {
   width: 100%; display: flex; flex-direction: column; gap: 16px;
-  border-bottom: 1px solid var(--digid-border); padding-bottom: 16px;
+  padding-bottom: 16px;
 }
 @media (min-width: 768px) {
-  .digid-start__columns { flex-direction: row; gap: 0; }
+  /* Documento a la izquierda (flexible) y panel a la derecha (ancho fijo).
+     `stretch` iguala la altura de ambas columnas: es lo que permite que
+     .digid-start__actions se ancle al fondo del panel. */
+  .digid-start__columns { flex-direction: row; align-items: stretch; gap: 24px; }
 }
 .digid-start__sidebar { display: flex; flex-direction: column; gap: 16px; width: 100%; }
 @media (min-width: 768px) {
-  .digid-start__sidebar { max-width: 270px; margin-right: 30px; flex: none; }
+  .digid-start__sidebar { max-width: 300px; flex: none; }
 }
-.digid-start__greeting { padding: 8px; font-size: 16px; line-height: 1.5; }
-@media (min-width: 768px) {
-  .digid-start__greeting { border-bottom: 1px solid var(--digid-border); }
+/* Tarjeta de bienvenida: agrupa el saludo como bloque de contexto propio,
+   separado visualmente del resto del panel. */
+.digid-start__greeting {
+  margin: 0; padding: 12px 14px; font-size: 15px; line-height: 1.5;
+  border: 1px solid var(--digid-border); border-radius: 12px;
+}
+/* Empuja el grupo términos + CTA + salir al fondo del panel. */
+.digid-start__actions {
+  display: flex; flex-direction: column; gap: 12px; margin-top: auto;
+}
+.digid-start__actions .digid-terms { padding-top: 0; }
+.digid-start__cta { width: 100%; }
+.digid-start__exit {
+  align-self: center; background: none; border: none; padding: 4px;
+  font: inherit; color: var(--digid-gray); text-decoration: underline; cursor: pointer;
 }
 .digid-start__warning { color: #d97706; }
 .digid-start__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -160,7 +185,10 @@
   .digid-start__main .digid-pdf { height: 420px; max-height: 420px; }
 }
 .digid-download-box {
-  width: 100%; border: 1px solid var(--digid-border); border-radius: 16px;
+  /* border-box: sin esto, width:100% + padding/borde hacían que la caja
+     sobresaliera 34px de su columna y provocara scroll horizontal en móvil. */
+  width: 100%; box-sizing: border-box;
+  border: 1px solid var(--digid-border); border-radius: 16px;
   margin-block: 16px; padding: 16px;
 }
 .digid-download-box a { font-weight: 700; color: var(--digid-gray); }

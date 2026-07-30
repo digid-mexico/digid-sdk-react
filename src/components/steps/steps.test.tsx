@@ -106,8 +106,11 @@ function renderStep(ui: React.ReactElement, ctx: FlowContextValue) {
 describe('StartStep', () => {
   it('muestra saludo con datos del firmante (escapados por React)', () => {
     const ctx = makeCtx();
-    renderStep(<StartStep />, ctx);
-    expect(screen.getByText(/Ana López/)).toBeInTheDocument();
+    const { container } = renderStep(<StartStep />, ctx);
+    // El nombre aparece en dos lugares por diseño: el encabezado lo fija como
+    // "estás firmando como…" y el saludo lo repite dentro de la frase.
+    expect(container.querySelector('.digid-start__signer')).toHaveTextContent('Ana López');
+    expect(container.querySelector('.digid-start__greeting')).toHaveTextContent(/Ana López/);
     expect(screen.getByText(/contrato\.pdf/)).toBeInTheDocument();
   });
 

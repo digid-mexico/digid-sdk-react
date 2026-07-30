@@ -112,9 +112,25 @@ export function StartStep() {
 
   return (
     <section aria-label={s.start.title}>
-      <div className="digid-start__header">{s.start.title}</div>
+      <div className="digid-start__header">
+        <span className="digid-start__title">{s.start.title}</span>
+        <span className="digid-start__signer">{data.signatory.nombre}</span>
+      </div>
 
       <div className="digid-start__columns">
+        {/* El documento es el foco de la pantalla: ocupa la columna ancha y va
+            primero en el DOM para que en móvil (columnas apiladas) el firmante
+            lo vea antes que las acciones. */}
+        <div className="digid-start__main">
+          <PdfViewer url={pdfUrl} toolbar />
+          <div className="digid-download-box">
+            <a href={api.fileUrl(`/docments/verarchivo/${data.document.id}`)} target="_blank" rel="noopener noreferrer">
+              {s.start.download}
+            </a>
+          </div>
+        </div>
+
+        {/* Panel lateral: contexto arriba, acciones ancladas abajo. */}
         <div className="digid-start__sidebar">
           {/* React escapa estos strings: sin riesgo XSS aunque vengan del backend */}
           <p className="digid-start__greeting">
@@ -167,47 +183,54 @@ export function StartStep() {
               </button>
             </div>
           )}
-        </div>
+          {/* Ancladas al fondo del panel (margin-top:auto) para que queden a
+              la altura del borde inferior del documento en escritorio. */}
+          <div className="digid-start__actions">
+            <div className="digid-terms">
+              <label className="digid-check">
+                <input
+                  type="checkbox"
+                  aria-label={s.start.accept}
+                  checked={accepted}
+                  onChange={(e) => setAccepted(e.target.checked)}
+                />
+                <span className="digid-check__icon" />
+              </label>
+              <a href={termsUrl} target="_blank" rel="noopener noreferrer">{s.start.accept}</a>
+            </div>
 
-        <div className="digid-start__main">
-          <PdfViewer url={pdfUrl} toolbar />
-          <div className="digid-download-box">
-            <a href={api.fileUrl(`/docments/verarchivo/${data.document.id}`)} target="_blank" rel="noopener noreferrer">
-              {s.start.download}
-            </a>
+            {repre != null ? (
+              <Button
+                className="digid-start__cta"
+                onClick={() => void continueRl()}
+                disabled={pwd.length < 3 || !accepted || submitting}
+              >
+                {s.rl.continue}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  className="digid-start__cta"
+                  disabled={!accepted}
+                  onClick={() => dispatch({ type: 'NEXT' })}
+                >
+                  {s.start.continue}
+                </Button>
+                {/* Enlace, no botón secundario: en el diseño la salida es una
+                    acción terciaria bajo el CTA. Sigue siendo <button> por
+                    accesibilidad (dispara una acción, no navega). */}
+                <button
+                  type="button"
+                  className="digid-start__exit"
+                  onClick={() => dispatch({ type: 'EXIT', reason: 'user_exit' })}
+                >
+                  {s.start.exit}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
-
-      <div className="digid-terms">
-        <label className="digid-check">
-          <input
-            type="checkbox"
-            aria-label={s.start.accept}
-            checked={accepted}
-            onChange={(e) => setAccepted(e.target.checked)}
-          />
-          <span className="digid-check__icon" />
-        </label>
-        <a href={termsUrl} target="_blank" rel="noopener noreferrer">{s.start.accept}</a>
-      </div>
-
-      {repre != null ? (
-        <div className="digid-footer digid-footer--end">
-          <Button onClick={() => void continueRl()} disabled={pwd.length < 3 || !accepted || submitting}>
-            {s.rl.continue}
-          </Button>
-        </div>
-      ) : (
-        <div className="digid-footer">
-          <Button variant="secondary" onClick={() => dispatch({ type: 'EXIT', reason: 'user_exit' })}>
-            {s.start.exit}
-          </Button>
-          <Button disabled={!accepted} onClick={() => dispatch({ type: 'NEXT' })}>
-            {s.start.continue}
-          </Button>
-        </div>
-      )}
 
       {kycOpen && (
         // onClose es un no-op a propósito: el flujo legado exige una elección

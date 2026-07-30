@@ -77,6 +77,25 @@ function configureWorker(pdfjs: typeof import('pdfjs-dist'), workerSrc?: string)
   }
 }
 
+/**
+ * Icono "ajustar al ancho": dos topes verticales y una flecha doble entre
+ * ellos. Va como icono y no como texto porque el botón del toolbar mide 32px
+ * (regla compartida con los demás) y la etiqueta se desbordaba. El nombre
+ * accesible lo sigue dando el aria-label del botón, de ahí el aria-hidden.
+ */
+function IconFitWidth() {
+  return (
+    <svg
+      viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor"
+      strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+    >
+      <path d="M4 5.5v13M20 5.5v13" />
+      <path d="M7.5 12h9" />
+      <path d="M10 9.5 7.5 12l2.5 2.5M14 9.5l2.5 2.5-2.5 2.5" />
+    </svg>
+  );
+}
+
 /** Offset (px CSS) del borde superior de `pageNum` (1-indexado) respecto al inicio del scroll. */
 function pageOffset(pages: PageInfo[], pageNum: number): number {
   let offset = 0;
@@ -321,8 +340,8 @@ export function PdfViewer({
           >
             +
           </button>
-          <button type="button" aria-label={s.pdf.fitWidth} onClick={() => setZoom(1)}>
-            {s.pdf.fitWidth}
+          <button type="button" aria-label={s.pdf.fitWidth} title={s.pdf.fitWidth} onClick={() => setZoom(1)}>
+            <IconFitWidth />
           </button>
           <span className="digid-pdf-toolbar__sep" />
           <button
