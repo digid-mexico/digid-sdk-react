@@ -81,12 +81,18 @@ interactiva.
 > ```
 
 1. Ir a https://www.npmjs.com/settings/~/tokens
-2. **Generate New Token**, eligiendo el tipo:
+2. **Generate New Token → Granular Access Token**, con estos valores:
 
-   | Tipo | Cuándo usarlo |
-   |---|---|
-   | **Classic → Automation** (recomendado para CI) | Es el tipo pensado para automatización: salta el 2FA por diseño. No tiene expiración ni alcance limitado, así que hay que cuidarlo. |
-   | **Granular Access Token** | Permite limitarlo a la organización `digid-sdk` o a un paquete y ponerle expiración. Para CI **hay que habilitarle el bypass de 2FA** al crearlo; sin eso da el E403 de arriba. Permiso: *Read and write*. |
+   | Campo | Valor | Por qué |
+   |---|---|---|
+   | **Bypass two-factor authentication (2FA)** | ☑ **marcada** | Es la casilla que evita el E403. No activa 2FA en el token: le da permiso para saltarse el de la cuenta. Sin marcar, npm exige un OTP que en CI nadie puede teclear. |
+   | **Packages and scopes → Permissions** | **Read and write** sobre el scope `@digid-sdk` | Con `No access` (el default) el publish falla igual. Elegir el **scope**, no un paquete: en el primer publish el paquete aún no existe, y un token limitado a él no puede crearlo. |
+   | **Organizations → Permissions** | `No access` | Esto administra la organización (miembros, ajustes), no publica. No hace falta. |
+   | **Expiration** | Más de 30 días, o con recordatorio | El default de 30 días rompe el CI en un mes sin aviso. |
+
+   Alternativa: un **Classic → Automation token** salta el 2FA por diseño y no
+   tiene casillas que configurar mal, pero tampoco expiración ni alcance
+   limitado. Es la opción sin fricción si el granular da problemas.
 
 3. Copiar el token **en ese momento**: npm no lo vuelve a mostrar.
 4. Guardarlo en GitHub como secret:
