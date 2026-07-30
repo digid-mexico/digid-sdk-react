@@ -68,13 +68,25 @@ pago solo haría falta para publicar paquetes privados.
 Es lo que permite publicar desde GitHub Actions sin capturar el 2FA de forma
 interactiva.
 
+> ⚠️ **Con 2FA en modo *Authorization and Publishing*, no cualquier token
+> sirve.** Publicar exige un OTP interactivo (imposible en CI) o un token que
+> salte el 2FA explícitamente. Un Granular Access Token creado sin esa
+> capacidad falla con:
+>
+> ```
+> npm error code E403
+> npm error 403 Forbidden - PUT https://registry.npmjs.org/...
+> Two-factor authentication or granular access token with bypass 2fa enabled
+> is required to publish packages.
+> ```
+
 1. Ir a https://www.npmjs.com/settings/~/tokens
 2. **Generate New Token**, eligiendo el tipo:
 
    | Tipo | Cuándo usarlo |
    |---|---|
-   | **Granular Access Token** (recomendado) | Permite limitarlo a la organización `digid-sdk` o al paquete específico y ponerle expiración. Elegir permiso *Read and write*. |
-   | **Classic → Automation** | Más simple, sin expiración ni alcance limitado. Funciona, pero si se filtra compromete mucho más. |
+   | **Classic → Automation** (recomendado para CI) | Es el tipo pensado para automatización: salta el 2FA por diseño. No tiene expiración ni alcance limitado, así que hay que cuidarlo. |
+   | **Granular Access Token** | Permite limitarlo a la organización `digid-sdk` o a un paquete y ponerle expiración. Para CI **hay que habilitarle el bypass de 2FA** al crearlo; sin eso da el E403 de arriba. Permiso: *Read and write*. |
 
 3. Copiar el token **en ese momento**: npm no lo vuelve a mostrar.
 4. Guardarlo en GitHub como secret:
@@ -211,6 +223,31 @@ Al anunciar la disponibilidad, lo que necesitan saber para integrar:
    sobre CSP.
 
 ---
+
+## Cuando el workflow falla
+
+El `npm publish` es lo último del workflow, después de typecheck, tests y build.
+Si falla ahí, **nada se escribió en el registro**: el número de versión sigue
+libre y no hace falta subir a la siguiente patch. Confirmarlo con:
+
+```bash
+curl -s https://registry.npmjs.org/@digid-sdk/firma-autografa-react | head -c 200
+# {"error":"Not found"}  -> nada publicado
+```
+
+**Para reintentar no hay que tocar git.** El tag ya está en el remoto y sigue
+siendo válido: basta con *Re-run jobs* desde la página del workflow fallido en
+GitHub Actions. Borrar y volver a crear el tag solo hace falta si el commit al
+que apunta era el equivocado.
+
+Errores frecuentes:
+
+| Error | Causa | Arreglo |
+|---|---|---|
+| `E403 ... Two-factor authentication or granular access token with bypass 2fa enabled is required` | El `NPM_TOKEN` no salta el 2FA | Regenerar como **Classic → Automation** (o Granular con bypass de 2FA), reemplazar el secret y re-ejecutar el job |
+| `E403 ... You do not have permission to publish` | La cuenta del token no es miembro de la organización con permiso de escritura | Revisar `npm org ls digid-sdk` |
+| `E409` / `cannot publish over existing version` | Esa versión ya existe en el registro | Subir la versión: las publicadas son inmutables |
+| El workflow aborta en *Verificar que el tag coincide* | El tag y `package.json` no concuerdan | Rehacer el tag sobre el commit correcto |
 
 ## Checklist del primer release
 
