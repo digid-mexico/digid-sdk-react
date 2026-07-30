@@ -246,11 +246,29 @@ siendo válido: basta con *Re-run jobs* desde la página del workflow fallido en
 GitHub Actions. Borrar y volver a crear el tag solo hace falta si el commit al
 que apunta era el equivocado.
 
+### Probar un token sin gastar una corrida de CI
+
+Antes de reemplazar el secret y relanzar el job, conviene comprobar el token
+localmente:
+
+```bash
+printf '//registry.npmjs.org/:_authToken=TU_TOKEN\n' > /tmp/npmrc-prueba
+NPM_CONFIG_USERCONFIG=/tmp/npmrc-prueba npm whoami
+NPM_CONFIG_USERCONFIG=/tmp/npmrc-prueba npm org ls digid-sdk
+NPM_CONFIG_USERCONFIG=/tmp/npmrc-prueba npm access list packages @digid-sdk
+rm /tmp/npmrc-prueba
+```
+
+`whoami` debe imprimir el usuario y `org ls` listarlo como owner o developer.
+Si `whoami` responde pero `org ls` falla, el token autentica pero le falta
+alcance sobre el scope — que es justo lo que produce el E404 de la tabla.
+
 Errores frecuentes:
 
 | Error | Causa | Arreglo |
 |---|---|---|
 | `E403 ... Two-factor authentication or granular access token with bypass 2fa enabled is required` | El `NPM_TOKEN` no salta el 2FA | Regenerar como **Classic → Automation** (o Granular con bypass de 2FA), reemplazar el secret y re-ejecutar el job |
+| `E404 ... PUT https://registry.npmjs.org/@digid-sdk%2f... Not found` | **No es que falte nada: son permisos.** npm responde 404 en vez de 403 para no revelar si un scope existe a quien no tiene acceso. El token autentica pero no puede escribir en el scope | En el token, poner *Packages and scopes* en **Read and write** y seleccionar el **scope** `@digid-sdk`, no un paquete (en el primer publish el paquete aún no existe, así que no aparece en la lista) |
 | `E403 ... You do not have permission to publish` | La cuenta del token no es miembro de la organización con permiso de escritura | Revisar `npm org ls digid-sdk` |
 | `E409` / `cannot publish over existing version` | Esa versión ya existe en el registro | Subir la versión: las publicadas son inmutables |
 | El workflow aborta en *Verificar que el tag coincide* | El tag y `package.json` no concuerdan | Rehacer el tag sobre el commit correcto |
