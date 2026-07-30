@@ -165,6 +165,11 @@ entorno real están en [docs/PENDIENTES-BACKEND.md](docs/PENDIENTES-BACKEND.md).
 
 ## Licencia
 
-`UNLICENSED` — software propietario de Digid. Su uso está sujeto al contrato de
-servicio con Digid; publicarse en el registro público de npm no otorga por sí mismo
-permiso de uso, copia o redistribución.
+[Apache-2.0](LICENSE) — Copyright 2026 Digid.
+
+El SDK es software libre bajo esa licencia, pero **no reemplaza al contrato de
+servicio**: el flujo de firma solo funciona contra la plataforma de Digid con un
+token de firmante válido, que se obtiene con una cuenta activa.
+
+Las atribuciones de terceros redistribuidos dentro del paquete (OpenCV, jscanify)
+están en [NOTICE](NOTICE).

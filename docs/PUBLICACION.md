@@ -5,26 +5,31 @@ cualquier cliente pueda instalarlo con `npm install`.
 
 ---
 
-## 0. Bloqueante antes del primer publish: la licencia
+## 0. Licencia — resuelto
 
-`package.json` declara `"license": "UNLICENSED"`, que significa *todos los derechos
-reservados, sin permiso de uso*. Publicar así en el registro **público** es
-contradictorio: el paquete queda descargable por cualquiera, pero el campo de
-licencia dice que nadie puede usarlo. npm lo permite técnicamente, pero deja a los
-clientes sin base legal clara para integrarlo.
+El paquete se publica bajo **Apache-2.0** (`LICENSE`, copyright 2026 Digid). Es un
+identificador SPDX estándar, así que no genera fricción con el escaneo de
+dependencias ni con las áreas legales de los clientes, e incluye concesión expresa
+de patentes y protección de marca.
 
-Hay que elegir antes de publicar. Es una decisión legal/comercial, no técnica:
+Que el código sea abierto no regala el servicio: el flujo solo funciona contra la
+plataforma de Digid con un token de firmante válido, que requiere cuenta activa.
 
-| Opción | Implica |
-|---|---|
-| **Licencia propietaria con archivo `LICENSE`** | Mantener `UNLICENSED` (o un identificador propio como `SEE LICENSE IN LICENSE`) y agregar un `LICENSE` que conceda uso a clientes con contrato vigente. Es lo más cercano al modelo de negocio actual. |
-| **MIT / Apache-2.0** | Permisivas y sin fricción para el cliente. Apache-2.0 además incluye concesión expresa de patentes. Implica aceptar que cualquiera —cliente o no— pueda usar el código. |
+Dos consecuencias a tener presentes:
 
-> **Nota sobre el código fuente.** El paquete incluye los source maps
-> (`dist/index.js.map`, ~370 kB), que embeben el TypeScript original. Publicar en npm
-> público expone el código fuente **aunque el repositorio de GitHub sea privado**. Si
-> no se quiere eso, hay que quitar los sourcemaps del build (`sourcemap: false` en
-> `tsup.config.ts`) antes de publicar.
+- **El código fuente queda expuesto.** El paquete incluye los source maps
+  (`dist/index.js.map`, ~370 kB), que embeben el TypeScript original. Eso ya es
+  coherente con Apache-2.0; si de todos modos se prefiere no publicarlos, basta
+  `sourcemap: false` en `tsup.config.ts`.
+- **Atribuciones de terceros.** El paquete redistribuye `scan-assets/opencv.js`
+  (OpenCV, Apache-2.0) y adapta el algoritmo de jscanify (MIT) en
+  `scan-assets/scan-worker.js`. Ambas atribuciones viven en `NOTICE`, que npm
+  incluye automáticamente en el tarball. Al actualizar OpenCV o cambiar el
+  algoritmo del worker, hay que revisar ese archivo.
+
+> **Pendiente menor:** el copyright dice `Digid`. Si la razón social que quieres
+> dejar asentada es distinta (p. ej. `Digid México, S.A. de C.V.`), cámbiala en
+> `LICENSE` y `NOTICE` antes del primer publish.
 
 ---
 
@@ -171,7 +176,8 @@ Al anunciar la disponibilidad, lo que necesitan saber para integrar:
 
 ## Checklist del primer release
 
-- [ ] Decidir la licencia y agregar el archivo `LICENSE` (sección 0)
+- [x] Licencia decidida (Apache-2.0) con `LICENSE` y `NOTICE` en el repositorio
+- [ ] Confirmar la razón social del copyright en `LICENSE` y `NOTICE`
 - [ ] Decidir si se publican los sourcemaps (exponen el código fuente)
 - [ ] Crear/confirmar la organización `digid` en npm y el permiso de publicación
 - [ ] Activar 2FA y generar el Automation token

@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/digid-mexico/digid-sdk-react/issues"
   },
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "publishConfig": {
     "access": "public"
   },
@@ -43,7 +43,8 @@
   },
   "files": [
     "scan-assets",
-    "dist"
+    "dist",
+    "NOTICE"
   ],
   "sideEffects": [
     "*.css"
