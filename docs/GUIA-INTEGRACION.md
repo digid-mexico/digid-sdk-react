@@ -1,6 +1,6 @@
 # Guía de integración — SDK de Firma Autógrafa de Digid
 
-`@digid/firma-autografa-react` · v0.8.2
+`@digid/firma-autografa-react` · v0.8.3
 
 Esta guía está dirigida a equipos de desarrollo que quieren integrar el proceso de
 **firma autógrafa de Digid** dentro de su propia aplicación web, sin redirigir a sus
@@ -236,6 +236,44 @@ Formas de obtenerlo:
 > no lo registres en logs, no lo compartas entre usuarios y entrégalo al navegador
 > solo en la página donde se va a firmar.
 
+### 5.1 Cómo viaja el token (`tokenTransport`)
+
+Históricamente el SDK mandaba el token en la query string de los dos GET
+(`start_autografa` y `asignado/autografa`). Un token en la URL termina escrito en
+los logs de acceso del servidor web, del proxy inverso, del WAF y del CDN, y en las
+trazas de APM — es decir, exactamente lo que pide evitar el párrafo de arriba. Los
+demás endpoints ya lo mandaban en el body, que no se registra.
+
+La prop `tokenTransport` permite moverlo a un header:
+
+| Valor | Qué manda | Cuándo usarlo |
+|---|---|---|
+| `'both'` (default) | Header **y** query | Transición: funciona igual contra el backend actual y contra uno ya migrado. Todavía **no** reduce la exposición en logs |
+| `'header'` | Solo `X-Digid-Token: <token>` | Estado objetivo: el token desaparece de los logs |
+| `'query'` | Solo query, sin header | Comportamiento histórico exacto; útil si el CORS del backend aún no permite `X-Digid-Token` |
+
+Se usa `X-Digid-Token` y no `Authorization: Bearer` a propósito: en el backend de
+Digid ese header ya identifica un token de Acceso (middleware `CheckToken` de la API
+administrativa), que es otra credencial distinta.
+
+**Orden de despliegue.** Mandar un header propio convierte cada llamada cross-origin
+en una petición con preflight. Si tu `baseUrl` apunta a otro origen (el caso normal),
+el backend **debe** responder al `OPTIONS` e incluir `X-Digid-Token` en
+`Access-Control-Allow-Headers` **antes** de que uses `'both'` o `'header'` — si no,
+fallarán todas las llamadas. Con `baseUrl: ''` (mismo origen) no aplica.
+
+1. Backend: aceptar el token por header y permitirlo en CORS.
+2. SDK: dejar el default `'both'` y verificar que el flujo completo funciona.
+3. SDK: cambiar a `'header'`. A partir de aquí el token ya no llega a ningún log.
+4. Backend: dejar de leer `$_GET['token']` en esos dos endpoints.
+
+```tsx
+<FirmaAutografa token={token} baseUrl="https://digidmexico.com.mx" tokenTransport="header" />
+```
+
+`forgot_pwd_rl` nunca recibe el token, ni en header ni en body: es un endpoint de
+recuperación por correo y no necesita la credencial del firmante.
+
 ---
 
 ## 6. Inicio rápido
@@ -316,6 +354,7 @@ export function Firmador({ token }: { token: string }) {
 |---|---|---|---|---|
 | `token` | `string` | ✅ | — | Token del firmante para este proceso de firma. |
 | `baseUrl` | `string` | — | `''` (mismo origen) | Origen del backend de Digid, `https://digidmexico.com.mx` (producción) o `https://pruebas.digidmexico.com.mx` (pruebas). Si tu app corre en un dominio distinto, es obligatorio y tu dominio debe estar habilitado en CORS. |
+| `tokenTransport` | `'both' \| 'header' \| 'query'` | — | `'both'` | Cómo viaja el token del firmante hacia el backend (ver [sección 5.1](#51-cómo-viaja-el-token-tokentransport)). Cámbialo a `'header'` para que el token deje de quedar escrito en los logs de acceso. |
 | `theme` | `DigidTheme` | — | — | Colores de tu marca (ver [sección 8](#8-personalización-visual)). Los estilos que tu cuenta tenga configurados en Digid tienen prioridad sobre esta prop. |
 | `termsUrl` | `string` | — | T&C de Digid | URL de los términos y condiciones que se enlazan en el paso 1. |
 | `detectionAssets` | `DetectionAssets` | — | CDNs públicos | URLs propias para autoalojar el modelo de detección de rostro de la selfie (ver [sección 1.2](#12-captura-automática-selfie)). `zxingWasmUrl` ya no se usa (ver nota en esa sección). |
@@ -523,6 +562,7 @@ sección 1.2) sin romper el resto del flujo — igual que el escáner de INE si
 - [ ] `scan-assets/` copiada a tu directorio de estáticos y accesible en la URL configurada (ver [sección 1.3](#13-escaneo-de-documentos-ine)); sin esto, la INE funciona pero sin recorte automático.
 - [ ] CSP verificada si tu aplicación la define.
 - [ ] El token nunca aparece en logs del cliente ni en URLs compartibles innecesariamente.
+- [ ] `tokenTransport="header"` activado una vez que el backend acepta `X-Digid-Token` (ver [sección 5.1](#51-cómo-viaja-el-token-tokentransport)); con el default `'both'` el token sigue viajando también en la query y por tanto sigue llegando a los logs de acceso.
 
 ---
 

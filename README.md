@@ -6,11 +6,27 @@ SDK React para integrar el flujo de firma autógrafa de Digid en aplicaciones de
 > [Guía de integración para clientes](docs/GUIA-INTEGRACION.md) — requisitos, ejemplos
 > (Vite/Next.js), referencia de props, theming, permisos, CSP y solución de problemas.
 
+- **Repositorio:** https://github.com/digid-mexico/digid-sdk-react
+- **Reportar un problema:** https://github.com/digid-mexico/digid-sdk-react/issues
+
 ## Instalación
 
-    npm install @digid/firma-autografa-react
+```bash
+npm install @digid/firma-autografa-react
+```
 
-Requiere React >= 18 como peer dependency.
+React >= 18 y React DOM >= 18 son peer dependencies: deben existir en tu proyecto,
+el SDK no los instala ni los empaqueta.
+
+Además de importar el componente, hay **dos pasos de instalación que no son
+opcionales** si quieres el flujo completo:
+
+1. Importar la hoja de estilos (`@digid/firma-autografa-react/styles.css`); sin ella
+   el SDK se renderiza sin ningún estilo.
+2. Copiar la carpeta `scan-assets/` del paquete a tu directorio de estáticos, porque
+   el Web Worker de escaneo de INE exige mismo origen y no puede servirse desde un
+   CDN. Si no lo haces el flujo no se rompe, pero los pasos de INE se degradan a
+   captura manual (ver [sección 1.3](docs/GUIA-INTEGRACION.md#13-escaneo-de-documentos-ine)).
 
 ## Uso
 
@@ -65,6 +81,7 @@ sin romper el flujo.
 |---|---|---|
 | token | string | Token del firmante (obligatorio) |
 | baseUrl | string | Origen del backend Digid (default: mismo origen) |
+| tokenTransport | 'both' \| 'header' \| 'query' | Cómo viaja el token (default: `'both'`). Cambia a `'header'` en cuanto el backend lea `X-Digid-Token` — ver sección 5.1 de la guía |
 | theme | DigidTheme | Colores opcionales; los estilos del cliente configurados en Digid tienen prioridad |
 | termsUrl | string | URL de términos y condiciones |
 | detectionAssets | DetectionAssets | URLs propias para autoalojar los modelos de detección de la captura automática (default: CDNs públicos); solo usados por la selfie — ver nota abajo sobre `zxingWasmUrl` |
@@ -99,8 +116,15 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
 ## Seguridad
 
 - Todo el estado vive en memoria (sin localStorage/sessionStorage).
-- Las imágenes se validan por magic bytes, se limitan a 10 MB y se re-encodean
-  a JPEG (se eliminan metadatos EXIF, incluido GPS).
+- Todas las rutas de subida de imagen (INE, selfie y el botón de galería del
+  escáner) validan por magic bytes, limitan el archivo a 10 MB y rechazan
+  imágenes que decodifiquen a más de 50 MP (bombas de descompresión).
+- Las imágenes se re-encodean a JPEG, lo que elimina los metadatos EXIF
+  (incluido GPS). Excepción conocida: si el re-encode falla, los pasos de INE y
+  selfie suben el archivo original **con EXIF intacto** — ver `normalizeToJpeg`
+  en `src/utils/image.ts`.
+- El token puede mandarse en un header en vez de la query string
+  (`tokenTransport`), para que no quede escrito en los logs de acceso.
 - La cámara se apaga en cuanto se captura o se desmonta el componente.
 - Sin scripts de terceros en runtime (pdf.js va empaquetado como dependencia); la captura
   automática carga de forma perezosa (solo al abrir la cámara) modelos de detección on-device
@@ -108,10 +132,19 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
   envían frames de video a Digid ni a terceros (ver la guía de integración para detalle y CSP).
 - Los colores de marca del backend se validan (solo hex) antes de inyectarse como CSS variables.
 
+## Versionado y publicación
+
+El paquete sigue [SemVer](https://semver.org). Mientras la versión sea `0.x`, una
+subida de **minor** (`0.8` → `0.9`) puede traer cambios incompatibles; fija el rango
+en tu `package.json` si necesitas estabilidad estricta.
+
+El proceso de publicación y el flujo de release están en
+[docs/PUBLICACION.md](docs/PUBLICACION.md).
+
 ## Desarrollo
 
     npm install
-    npm test            # vitest (317 tests)
+    npm test            # vitest
     npm run typecheck
     npm run build       # tsup → dist/
     npm run dev         # playground en http://localhost:5199/?token=<token>
@@ -127,19 +160,11 @@ Abre en el celular la URL "Network" que imprime Vite (p. ej.
 https://192.168.0.33:5199/?token=...), acepta la advertencia del certificado
 autofirmado y la cámara funcionará. Mac y celular deben estar en la misma red.
 
-### Pendiente de verificar contra el backend real
+Las notas de contrato con el backend y los puntos pendientes de verificar contra un
+entorno real están en [docs/PENDIENTES-BACKEND.md](docs/PENDIENTES-BACKEND.md).
 
-- `save_file` para `step=firma` envía el dataURL de la firma como string en el campo
-  `file` (no `webCamera`), confirmado contra `AsignadoController::saveSignatoryFile`
-  (~línea 666), que en esa rama solo lee `file`. Los pasos de INE siguen mandando el
-  dataURL en `webCamera`, como el flujo legacy.
-- El tamaño del overlay de previsualización de firma se calcula matemáticamente a
-  partir del rectángulo de 37×24mm físicos que el backend estampa sobre el PDF
-  final (`SignatureNotificationService`, FPDI/FPDF), usando las dimensiones
-  físicas reales de cada página (`PageInfo.widthPt`/`heightPt`): coincide con lo
-  estampado a cualquier zoom o tamaño de contenedor, sin depender de verificación
-  visual contra el legacy.
-- Confirmar que `/docments/verarchivo/{id}` funciona para firmantes externos en un
-  origen cross-origin (dominio del integrador distinto al del backend Digid).
-- Confirmar con un token real cuál id se usa para las rutas de storage del cliente
-  (`client.id` vs `document.client`).
+## Licencia
+
+`UNLICENSED` — software propietario de Digid. Su uso está sujeto al contrato de
+servicio con Digid; publicarse en el registro público de npm no otorga por sí mismo
+permiso de uso, copia o redistribución.
