@@ -12,9 +12,16 @@ El proyecto sigue [SemVer](https://semver.org) con las reglas de
 
 ## [Sin publicar]
 
-Primera versión que se publica en npm. Los cambios marcados con ⚠️ rompen
+## [1.0.0] — 2026-07-30
+
+Primera versión publicada en npm. Los cambios marcados con ⚠️ rompen
 compatibilidad respecto a 0.8.3, pero como esa versión nunca se publicó, no
 afectan a ningún consumidor.
+
+Se numera `1.0.0` y no `0.9.0` porque la superficie pública quedó acotada a ~39
+símbolos que sí se pueden sostener bajo SemVer: a partir de aquí, cualquier
+ruptura de esa API exige un major. El motor de escaneo queda fuera de esa
+promesa, en el subpath `/engine` (ver [docs/VERSIONADO.md](docs/VERSIONADO.md)).
 
 ### Añadido
 

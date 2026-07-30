@@ -1,6 +1,6 @@
 # Guía de integración — SDK de Firma Autógrafa de Digid
 
-`@digid-sdk/firma-autografa-react` · v0.8.3
+`@digid-sdk/firma-autografa-react` · v1.0.0
 
 Esta guía está dirigida a equipos de desarrollo que quieren integrar el proceso de
 **firma autógrafa de Digid** dentro de su propia aplicación web, sin redirigir a sus

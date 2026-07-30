@@ -1,0 +1,55 @@
+name: Publish
+
+# Se dispara solo con tags vX.Y.Z, así que publicar es un acto deliberado:
+#   npm version minor && git push --follow-tags
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write # requerido por --provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      # Las mismas comprobaciones que CI. Se repiten aquí a propósito: el tag
+      # puede apuntar a un commit que nunca pasó por el workflow de CI.
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      # El tag y la versión de package.json deben coincidir; si no, se estaría
+      # publicando algo distinto de lo que anuncia el tag.
+      #
+      # El nombre del tag se pasa por `env:` y se usa como variable de shell
+      # entrecomillada, nunca interpolado con ${{ }} dentro de `run:`: así un
+      # tag con metacaracteres no puede inyectar comandos.
+      - name: Verificar que el tag coincide con package.json
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          tag_version="${TAG_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::El tag es v${tag_version} pero package.json dice ${pkg_version}"
+            exit 1
+          fi
+          echo "Versión verificada: ${pkg_version}"
+
+      # --provenance hace que npm firme el paquete y publique desde qué commit y
+      # workflow se construyó, visible en la página del paquete.
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
