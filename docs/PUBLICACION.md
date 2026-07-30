@@ -1,6 +1,6 @@
 # Plan de publicación en npm
 
-Cómo llevar `@digid/firma-autografa-react` al registro público de npm para que
+Cómo llevar `@digid-sdk/firma-autografa-react` al registro público de npm para que
 cualquier cliente pueda instalarlo con `npm install`.
 
 ---
@@ -46,36 +46,22 @@ ejecuta una persona; no se puede automatizar desde el repositorio.
    **Authorization and Publishing**.
 3. Guardar los códigos de recuperación fuera de la laptop.
 
-### 1.2 Comprobar que el scope `@digid` esté libre
+### 1.2 Scope y organización — hecho
 
-Antes de crear nada:
+El scope `@digid` ya estaba ocupado por un tercero, así que la organización se creó
+como **`digid-sdk`** y el paquete se llama `@digid-sdk/firma-autografa-react`.
 
-```bash
-npm view @digid/firma-autografa-react
-```
-
-Un `E404` confirma que el paquete no existe, pero **no** que el scope esté libre:
-alguien pudo reservar `digid` sin publicar nada. La prueba definitiva es el
-formulario del paso 1.3 — si el nombre está tomado, lo rechaza ahí mismo.
-
-Si `digid` resulta ocupado, las alternativas naturales son
-`@constancias-digitales` o `@digid-mexico` (este último hace juego con la
-organización de GitHub). Cambiar el scope toca el `name` de `package.json`, el
-README y la guía de integración.
-
-### 1.3 Crear la organización
-
-1. Ir a https://www.npmjs.com/org/create
-2. Nombre de la organización: `digid` → el scope queda como `@digid`.
-3. Elegir el plan **Free**: da paquetes **públicos** ilimitados. El de pago solo
-   hace falta para paquetes privados, y este se publica público.
-4. Verificar desde la terminal:
+Para verificar el estado en cualquier momento:
 
 ```bash
-npm login          # abre el navegador para autenticar
-npm whoami         # debe imprimir tu usuario
-npm org ls digid   # debe listarte como owner/admin
+npm login            # abre el navegador para autenticar
+npm whoami           # debe imprimir tu usuario
+npm org ls digid-sdk # debe listarte como owner/admin
+npm view @digid-sdk/firma-autografa-react   # E404 hasta el primer publish
 ```
+
+La organización está en plan **Free**, que da paquetes públicos ilimitados; el de
+pago solo haría falta para publicar paquetes privados.
 
 ### 1.4 Generar el token para CI
 
@@ -87,7 +73,7 @@ interactiva.
 
    | Tipo | Cuándo usarlo |
    |---|---|
-   | **Granular Access Token** (recomendado) | Permite limitarlo a la organización `digid` o al paquete específico y ponerle expiración. Elegir permiso *Read and write*. |
+   | **Granular Access Token** (recomendado) | Permite limitarlo a la organización `digid-sdk` o al paquete específico y ponerle expiración. Elegir permiso *Read and write*. |
    | **Classic → Automation** | Más simple, sin expiración ni alcance limitado. Funciona, pero si se filtra compromete mucho más. |
 
 3. Copiar el token **en ese momento**: npm no lo vuelve a mostrar.
@@ -143,7 +129,7 @@ npm publish --access public
 Comprobar que quedó bien instalable desde fuera, en un directorio temporal limpio:
 
 ```bash
-npm view @digid/firma-autografa-react
+npm view @digid-sdk/firma-autografa-react
 ```
 
 ---
@@ -214,8 +200,8 @@ git push --follow-tags     # el tag dispara el workflow y publica
 
 Al anunciar la disponibilidad, lo que necesitan saber para integrar:
 
-1. `npm install @digid/firma-autografa-react`
-2. Importar `@digid/firma-autografa-react/styles.css`.
+1. `npm install @digid-sdk/firma-autografa-react`
+2. Importar `@digid-sdk/firma-autografa-react/styles.css`.
 3. Copiar `scan-assets/` a su directorio de estáticos (si no, los pasos de INE caen a
    captura manual).
 4. Agregar su dominio al allowlist de CORS del backend de Digid.
@@ -231,10 +217,9 @@ Al anunciar la disponibilidad, lo que necesitan saber para integrar:
 - [x] Licencia decidida (Apache-2.0) con `LICENSE` y `NOTICE` en el repositorio
 - [x] Razón social del copyright confirmada (CONSTANCIAS DIGITALES)
 - [ ] Decidir si se publican los sourcemaps (exponen el código fuente)
-- [ ] Cuenta npm de la empresa creada y con 2FA activo (sección 1.1)
-- [ ] Scope `@digid` confirmado libre (sección 1.2)
-- [ ] Organización `digid` creada en plan Free (sección 1.3)
-- [ ] Token generado y guardado como secret `NPM_TOKEN` en GitHub (sección 1.4)
+- [x] Cuenta npm de la empresa creada y con 2FA activo (sección 1.1)
+- [x] Organización `digid-sdk` creada en plan Free; scope `@digid-sdk` (sección 1.2)
+- [x] Token generado y guardado como secret `NPM_TOKEN` en GitHub (sección 1.4)
 - [ ] `npm ci && npm run typecheck && npm test && npm run build`
 - [ ] Revisar `npm pack --dry-run` (contenido y tamaño)
 - [ ] `npm publish --access public`

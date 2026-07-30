@@ -1,4 +1,4 @@
-# @digid/firma-autografa-react
+# @digid-sdk/firma-autografa-react
 
 SDK React para integrar el flujo de firma autógrafa de Digid en aplicaciones de terceros.
 
@@ -12,7 +12,7 @@ SDK React para integrar el flujo de firma autógrafa de Digid en aplicaciones de
 ## Instalación
 
 ```bash
-npm install @digid/firma-autografa-react
+npm install @digid-sdk/firma-autografa-react
 ```
 
 React >= 18 y React DOM >= 18 son peer dependencies: deben existir en tu proyecto,
@@ -21,7 +21,7 @@ el SDK no los instala ni los empaqueta.
 Además de importar el componente, hay **dos pasos de instalación que no son
 opcionales** si quieres el flujo completo:
 
-1. Importar la hoja de estilos (`@digid/firma-autografa-react/styles.css`); sin ella
+1. Importar la hoja de estilos (`@digid-sdk/firma-autografa-react/styles.css`); sin ella
    el SDK se renderiza sin ningún estilo.
 2. Copiar la carpeta `scan-assets/` del paquete a tu directorio de estáticos, porque
    el Web Worker de escaneo de INE exige mismo origen y no puede servirse desde un
@@ -30,8 +30,8 @@ opcionales** si quieres el flujo completo:
 
 ## Uso
 
-    import { FirmaAutografa } from '@digid/firma-autografa-react';
-    import '@digid/firma-autografa-react/styles.css';
+    import { FirmaAutografa } from '@digid-sdk/firma-autografa-react';
+    import '@digid-sdk/firma-autografa-react/styles.css';
 
     <FirmaAutografa
       token={tokenDelFirmante}

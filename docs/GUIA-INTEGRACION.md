@@ -1,6 +1,6 @@
 # Guía de integración — SDK de Firma Autógrafa de Digid
 
-`@digid/firma-autografa-react` · v0.8.3
+`@digid-sdk/firma-autografa-react` · v0.8.3
 
 Esta guía está dirigida a equipos de desarrollo que quieren integrar el proceso de
 **firma autógrafa de Digid** dentro de su propia aplicación web, sin redirigir a sus
@@ -147,7 +147,7 @@ no pueden cargarse desde un CDN cross-origin (a diferencia de MediaPipe/zxing en
 directorio de estáticos:
 
 ```bash
-cp -R node_modules/@digid/firma-autografa-react/scan-assets public/digid-scan
+cp -R node_modules/@digid-sdk/firma-autografa-react/scan-assets public/digid-scan
 ```
 
 Por default el SDK busca el worker en `/digid-scan/scan-worker.js`. Si tu proyecto
@@ -207,7 +207,7 @@ Antes de integrar necesitas:
 ## 4. Instalación
 
 ```bash
-npm install @digid/firma-autografa-react
+npm install @digid-sdk/firma-autografa-react
 ```
 
 El paquete incluye sus tipos de TypeScript. `pdfjs-dist` se instala como dependencia
@@ -281,8 +281,8 @@ recuperación por correo y no necesita la credencial del firmante.
 ### 6.1 Aplicación Vite / CRA / SPA
 
 ```tsx
-import { FirmaAutografa } from '@digid/firma-autografa-react';
-import '@digid/firma-autografa-react/styles.css';
+import { FirmaAutografa } from '@digid-sdk/firma-autografa-react';
+import '@digid-sdk/firma-autografa-react/styles.css';
 
 export function PaginaDeFirma({ token }: { token: string }) {
   return (
@@ -326,10 +326,10 @@ export default async function Page({ params }: { params: Promise<{ token: string
 'use client';
 
 import dynamic from 'next/dynamic';
-import '@digid/firma-autografa-react/styles.css';
+import '@digid-sdk/firma-autografa-react/styles.css';
 
 const FirmaAutografa = dynamic(
-  () => import('@digid/firma-autografa-react').then((m) => m.FirmaAutografa),
+  () => import('@digid-sdk/firma-autografa-react').then((m) => m.FirmaAutografa),
   { ssr: false },
 );
 
@@ -386,7 +386,7 @@ export function Firmador({ token }: { token: string }) {
 | `UNEXPECTED` | Error del servidor (5xx) o respuesta con formato inesperado. |
 
 ```tsx
-import { DigidError } from '@digid/firma-autografa-react';
+import { DigidError } from '@digid-sdk/firma-autografa-react';
 
 onError={(err) => {
   if (err instanceof DigidError && err.code === 'INVALID_TOKEN') {
