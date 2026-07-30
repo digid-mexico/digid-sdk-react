@@ -165,7 +165,7 @@ entorno real están en [docs/PENDIENTES-BACKEND.md](docs/PENDIENTES-BACKEND.md).
 
 ## Licencia
 
-[Apache-2.0](LICENSE) — Copyright 2026 Digid.
+[Apache-2.0](LICENSE) — Copyright 2026 CONSTANCIAS DIGITALES.
 
 El SDK es software libre bajo esa licencia, pero **no reemplaza al contrato de
 servicio**: el flujo de firma solo funciona contra la plataforma de Digid con un

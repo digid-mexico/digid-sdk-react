@@ -27,36 +27,88 @@ Dos consecuencias a tener presentes:
   incluye automáticamente en el tarball. Al actualizar OpenCV o cambiar el
   algoritmo del worker, hay que revisar ese archivo.
 
-> **Pendiente menor:** el copyright dice `Digid`. Si la razón social que quieres
-> dejar asentada es distinta (p. ej. `Digid México, S.A. de C.V.`), cámbiala en
-> `LICENSE` y `NOTICE` antes del primer publish.
+El titular del copyright es **CONSTANCIAS DIGITALES**, en `LICENSE`, `NOTICE` y el
+campo `author` de `package.json`.
 
 ---
 
 ## 1. Preparar la cuenta y el scope
 
-El scope `@digid` no tiene paquetes publicados. Para un scope público:
+Todo este paso se hace en la web de npm y requiere contraseña y 2FA, así que lo
+ejecuta una persona; no se puede automatizar desde el repositorio.
+
+### 1.1 Cuenta y 2FA
+
+1. Crear la cuenta en https://www.npmjs.com/signup, o iniciar sesión con la
+   existente. Conviene que sea una cuenta de la empresa, no personal: quien la
+   controle podrá publicar versiones del SDK.
+2. Activar 2FA en https://www.npmjs.com/settings/~/2fa en la modalidad
+   **Authorization and Publishing**.
+3. Guardar los códigos de recuperación fuera de la laptop.
+
+### 1.2 Comprobar que el scope `@digid` esté libre
+
+Antes de crear nada:
 
 ```bash
-npm login
+npm view @digid/firma-autografa-react
 ```
 
-Luego crear la organización `digid` en https://www.npmjs.com/org/create (el plan
-gratuito permite paquetes **públicos** ilimitados; el de pago solo hace falta para
-privados). Verificar que la cuenta quedó como miembro con permiso de publicación:
+Un `E404` confirma que el paquete no existe, pero **no** que el scope esté libre:
+alguien pudo reservar `digid` sin publicar nada. La prueba definitiva es el
+formulario del paso 1.3 — si el nombre está tomado, lo rechaza ahí mismo.
+
+Si `digid` resulta ocupado, las alternativas naturales son
+`@constancias-digitales` o `@digid-mexico` (este último hace juego con la
+organización de GitHub). Cambiar el scope toca el `name` de `package.json`, el
+README y la guía de integración.
+
+### 1.3 Crear la organización
+
+1. Ir a https://www.npmjs.com/org/create
+2. Nombre de la organización: `digid` → el scope queda como `@digid`.
+3. Elegir el plan **Free**: da paquetes **públicos** ilimitados. El de pago solo
+   hace falta para paquetes privados, y este se publica público.
+4. Verificar desde la terminal:
 
 ```bash
-npm whoami
-npm org ls digid
+npm login          # abre el navegador para autenticar
+npm whoami         # debe imprimir tu usuario
+npm org ls digid   # debe listarte como owner/admin
 ```
 
-> Si el scope `@digid` ya está tomado por un tercero, la alternativa es renombrar el
-> paquete a `@digid-mexico/firma-autografa-react` para que coincida con la
-> organización de GitHub. Ese cambio toca `package.json`, el README y la guía.
+### 1.4 Generar el token para CI
 
-Activar 2FA en la cuenta npm y dejarlo en modo *auth-and-writes*. Para publicar desde
-CI hace falta un **Automation token**, que es el único que salta el 2FA:
-npmjs.com → Access Tokens → Generate → *Automation*.
+Es lo que permite publicar desde GitHub Actions sin capturar el 2FA de forma
+interactiva.
+
+1. Ir a https://www.npmjs.com/settings/~/tokens
+2. **Generate New Token**, eligiendo el tipo:
+
+   | Tipo | Cuándo usarlo |
+   |---|---|
+   | **Granular Access Token** (recomendado) | Permite limitarlo a la organización `digid` o al paquete específico y ponerle expiración. Elegir permiso *Read and write*. |
+   | **Classic → Automation** | Más simple, sin expiración ni alcance limitado. Funciona, pero si se filtra compromete mucho más. |
+
+3. Copiar el token **en ese momento**: npm no lo vuelve a mostrar.
+4. Guardarlo en GitHub como secret:
+   `Settings → Secrets and variables → Actions → New repository secret`,
+   con el nombre `NPM_TOKEN`.
+
+> **Antes de generar el token, revisa si tu cuenta ya tiene disponible *Trusted
+> Publishing* (OIDC) en la configuración del paquete.** Si está, es preferible:
+> GitHub Actions se autentica contra npm sin token, así que no hay secret que
+> rotar ni que se pueda filtrar, y el `NODE_AUTH_TOKEN` del workflow de la
+> sección 5 sobra. Es una función relativamente reciente; si no aparece en la
+> interfaz, sigue con el token.
+
+### 1.5 Higiene del token
+
+- Nunca pegarlo en un archivo del repositorio ni en un `.npmrc` commiteado.
+- Con Granular Access Token, anotar la fecha de expiración para rotarlo a tiempo y
+  no enterarte con un release fallido.
+- Si se filtra, revocarlo en la misma pantalla de tokens: queda inválido de
+  inmediato.
 
 ---
 
@@ -177,10 +229,12 @@ Al anunciar la disponibilidad, lo que necesitan saber para integrar:
 ## Checklist del primer release
 
 - [x] Licencia decidida (Apache-2.0) con `LICENSE` y `NOTICE` en el repositorio
-- [ ] Confirmar la razón social del copyright en `LICENSE` y `NOTICE`
+- [x] Razón social del copyright confirmada (CONSTANCIAS DIGITALES)
 - [ ] Decidir si se publican los sourcemaps (exponen el código fuente)
-- [ ] Crear/confirmar la organización `digid` en npm y el permiso de publicación
-- [ ] Activar 2FA y generar el Automation token
+- [ ] Cuenta npm de la empresa creada y con 2FA activo (sección 1.1)
+- [ ] Scope `@digid` confirmado libre (sección 1.2)
+- [ ] Organización `digid` creada en plan Free (sección 1.3)
+- [ ] Token generado y guardado como secret `NPM_TOKEN` en GitHub (sección 1.4)
 - [ ] `npm ci && npm run typecheck && npm test && npm run build`
 - [ ] Revisar `npm pack --dry-run` (contenido y tamaño)
 - [ ] `npm publish --access public`
