@@ -132,14 +132,31 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
   envían frames de video a Digid ni a terceros (ver la guía de integración para detalle y CSP).
 - Los colores de marca del backend se validan (solo hex) antes de inyectarse como CSS variables.
 
+## API estable vs. motor interno
+
+El paquete expone dos entradas con garantías distintas:
+
+```ts
+// Estable: cubierto por SemVer
+import { FirmaAutografa } from '@digid-sdk/firma-autografa-react';
+
+// Inestable: motor de escaneo/detección, para UIs de captura propias
+import { initDocScan } from '@digid-sdk/firma-autografa-react/engine';
+```
+
+El subpath `/engine` expone el escáner con OpenCV, los detectores on-device y los
+umbrales de calibración. **No sigue SemVer**: esos umbrales se reajustan con datos
+de campo y pueden cambiar en cualquier versión, incluida una patch. Si lo usas, fija
+la versión exacta y revisa el [CHANGELOG](CHANGELOG.md) antes de actualizar.
+
 ## Versionado y publicación
 
-El paquete sigue [SemVer](https://semver.org). Mientras la versión sea `0.x`, una
-subida de **minor** (`0.8` → `0.9`) puede traer cambios incompatibles; fija el rango
-en tu `package.json` si necesitas estabilidad estricta.
+El paquete sigue [SemVer](https://semver.org) sobre la entrada principal. Las reglas
+completas —qué cuenta como major, la matriz de compatibilidad con el backend y la
+política de deprecación— están en [docs/VERSIONADO.md](docs/VERSIONADO.md).
 
-El proceso de publicación y el flujo de release están en
-[docs/PUBLICACION.md](docs/PUBLICACION.md).
+- Cambios por versión: [CHANGELOG.md](CHANGELOG.md)
+- Proceso de release: [docs/PUBLICACION.md](docs/PUBLICACION.md)
 
 ## Desarrollo
 
