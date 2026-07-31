@@ -12,6 +12,8 @@ El proyecto sigue [SemVer](https://semver.org) con las reglas de
 
 ## [Sin publicar]
 
+## [1.0.1] — 2026-07-30
+
 ### Corregido
 
 - **La captura de INE se quedaba en "Preparando el escáner…" para siempre en
