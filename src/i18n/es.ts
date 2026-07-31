@@ -111,6 +111,7 @@ export const es = {
       frontTitle: 'Documento capturado',
       backTitle: 'Reverso capturado',
       selfieTitle: 'Selfie capturada',
+      selfieCheck: 'Rostro visible y centrado',
       subcopy: 'Revisa que la imagen se vea clara, completa y sin reflejos importantes.',
       savedSubtitle: 'Esta es la imagen guardada anteriormente. Puedes continuar con ella o repetir la captura.',
       savedCheck: 'Imagen guardada previamente',

@@ -316,9 +316,55 @@ describe('GuidedCameraCapture', () => {
     await flush(200);
 
     fireEvent.click(screen.getByRole('button', { name: es.capture.manualButton }));
-    expect(screen.getByAltText('Vista previa de la captura')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+    // Con chrome="scan" el preview usa ScanPreviewLayout, el mismo que la INE:
+    // antes era un <img> suelto sin clase y la selfie salía a tamaño natural,
+    // pegada arriba a la izquierda, sin parecerse al preview del documento.
+    expect(container.querySelector('.digid-scan__preview')).toBeInTheDocument();
+    expect(screen.getByAltText('Selfie capturada')).toBeInTheDocument();
+    expect(screen.getByText(es.scanUi.preview.selfieTitle)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: es.scanUi.preview.continue }));
     expect(onCapture).toHaveBeenCalledWith('data:image/png;base64,stub');
+  });
+
+  // El chrome 'plain' sigue con el preview simple: es el default y se exporta
+  // públicamente, así que no debe cambiar para quien lo use fuera del flujo.
+  it('chrome="plain" conserva el preview simple', async () => {
+    const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
+    vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);
+
+    const { container } = renderGuided({ guide: 'face', detector: 'face-selfie', onCapture: vi.fn() });
+    setVideoDims(container);
+    await flush(200);
+
+    fireEvent.click(screen.getByRole('button', { name: es.capture.manualButton }));
+    expect(screen.getByAltText('Vista previa de la captura')).toBeInTheDocument();
+    expect(container.querySelector('.digid-scan__preview')).toBeNull();
+  });
+
+  // Regresión: el preview en vivo debe espejarse con la cámara frontal en
+  // CUALQUIER dispositivo. Antes dependía de `mirror`, que SelfieStep apagaba
+  // en móvil, así que el firmante se veía invertido: mover la cara a la
+  // derecha la movía a la izquierda en pantalla.
+  it('espeja el preview con cámara frontal aunque mirror sea false', async () => {
+    const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
+    vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);
+
+    const { container } = renderGuided({
+      guide: 'face', detector: 'face-selfie', facingMode: 'user', mirror: false, onCapture: vi.fn(),
+    });
+    const video = container.querySelector('video')!;
+    expect(video.style.transform).toBe('scaleX(-1)');
+  });
+
+  it('no espeja el preview con la cámara trasera (el texto del documento se leería al revés)', async () => {
+    const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
+    vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);
+
+    const { container } = renderGuided({
+      guide: 'id', detector: 'face-small', facingMode: 'environment', onCapture: vi.fn(),
+    });
+    const video = container.querySelector('video')!;
+    expect(video.style.transform).toBe('');
   });
 
   it('llama onCancel y apaga la cámara al cancelar', async () => {

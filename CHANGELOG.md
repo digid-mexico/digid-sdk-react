@@ -12,6 +12,39 @@ El proyecto sigue [SemVer](https://semver.org) con las reglas de
 
 ## [Sin publicar]
 
+## [1.1.0] — 2026-07-31
+
+### Corregido
+
+- **La vista previa de la selfie no se espejaba en móvil.** El firmante se veía
+  invertido: mover la cara a la derecha la movía a la izquierda en pantalla, lo
+  que hacía antinatural encuadrarse. La causa es que `mirror` controlaba dos
+  cosas a la vez —la vista previa y el frame capturado— y `SelfieStep` lo
+  apagaba en móvil. Ahora están separadas: **la vista previa se espeja siempre
+  con la cámara frontal**, en cualquier dispositivo.
+
+  La imagen que se **guarda** no cambia en ninguna plataforma: sigue
+  controlada por `mirror`. La separación es deliberada, porque alterar lo que
+  se almacena afectaría a la verificación de identidad en el backend.
+
+- **La selfie capturada se mostraba sin formato**, a tamaño natural y alineada
+  arriba a la izquierda, en nada parecida al preview de la INE. El preview
+  interno de `GuidedCameraCapture` era un `<img>` sin clase alguna; ahora, con
+  `chrome="scan"`, usa `ScanPreviewLayout` — el mismo encabezado, imagen
+  enmarcada y checklist que los pasos de identificación.
+
+  `chrome="plain"` (el default) conserva el preview simple, para no cambiar el
+  comportamiento de quien use el componente fuera del flujo.
+
+### Añadido
+
+- Texto `scanUi.preview.selfieCheck` para el checklist de la selfie.
+
+  > **Si pasas un diccionario propio a `I18nProvider`**, añade esa clave: el
+  > tipo `Strings` es la forma exacta de `es`, así que un objeto completo
+  > escrito a mano dejará de compilar sin ella. Si usas el `es` exportado (el
+  > caso normal) no tienes que hacer nada.
+
 ## [1.0.2] — 2026-07-31
 
 ### Corregido

@@ -8,6 +8,7 @@ import { createFaceFrameDetector } from '../../detection/faceDetector';
 import { createBarcodeFrameDetector } from '../../detection/barcodeDetector';
 import type { DetectionResult, FrameDetector } from '../../detection/types';
 import { guideRect, type GuideKind } from './guideRect';
+import { ScanPreviewLayout } from '../scan/ScanPreviewLayout';
 import { acceptBarcode, acceptFaceSelfie, acceptFaceSmall } from './acceptance';
 
 export type { GuideKind };
@@ -211,6 +212,17 @@ export function GuidedCameraCapture({
   const ringOffset = ringCircumference * (1 - auto.countdownProgress);
   const scanChrome = chrome === 'scan';
 
+  // El PREVIEW en vivo se espeja siempre que la cámara sea frontal, en
+  // cualquier dispositivo: es la convención de toda app de selfie y lo que
+  // espera quien se está viendo — sin esto, mover la cara a la derecha la
+  // mueve a la izquierda en pantalla y encuadrarse se vuelve antinatural.
+  //
+  // Es una decisión distinta de `mirror`, que sigue controlando solo si se
+  // voltea el FRAME CAPTURADO (qué imagen se guarda). Se mantienen separadas a
+  // propósito: cambiar lo que se almacena afectaría a la verificación de
+  // identidad en el backend, mientras que espejar la vista previa no.
+  const espejarPreview = facingMode === 'user';
+
   // Contenido del stage (video + máscara SVG + anillo de cuenta regresiva):
   // idéntico en ambos chromes — el óvalo/marco guía no cambia (Task 24).
   const stage = (
@@ -222,7 +234,7 @@ export function GuidedCameraCapture({
         muted
         onLoadedMetadata={handleVideoDimensionsChange}
         onResize={handleVideoDimensionsChange}
-        style={mirror ? { transform: 'scaleX(-1)' } : undefined}
+        style={espejarPreview ? { transform: 'scaleX(-1)' } : undefined}
       />
       <svg
         className="digid-guided-camera__mask"
@@ -358,6 +370,33 @@ export function GuidedCameraCapture({
             </div>
           </>
         )
+      ) : scanChrome ? (
+        // Mismo layout que el preview de INE (DocScanCapture): encabezado,
+        // imagen enmarcada y checklist. Antes era un <img> suelto sin clase,
+        // así que la selfie salía a tamaño natural y pegada arriba a la
+        // izquierda, en nada parecida al preview del documento.
+        <ScanPreviewLayout
+          eyebrow={s.scanUi.eyebrow}
+          title={s.scanUi.preview.selfieTitle}
+          subtitle={s.scanUi.preview.subcopy}
+          imageSrc={preview}
+          imageAlt="Selfie capturada"
+          checklist={[{ key: 'captured', label: s.scanUi.preview.selfieCheck }]}
+          actions={
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setPreview(null);
+                  void open();
+                }}
+              >
+                {s.scanUi.preview.repeat}
+              </Button>
+              <Button onClick={() => onCapture(preview)}>{s.scanUi.preview.continue}</Button>
+            </>
+          }
+        />
       ) : (
         <>
           <img src={preview} alt="Vista previa de la captura" />
