@@ -225,8 +225,17 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
   // rama "video no listo" cuando !video, entrando en un bucle infinito que
   // nunca se limpia). scheduleTick la consulta como barrera única.
   const unmountedRef = useRef(false);
-  useEffect(() => () => {
-    unmountedRef.current = true;
+  // Se REINICIA a false al montar, no solo se marca al desmontar. Con un
+  // efecto de solo-limpieza, <StrictMode> (monta → desmonta → remonta en
+  // desarrollo) dejaba la bandera en true de forma permanente: como es la
+  // primera línea de tick() y de scheduleTick(), el bucle de escaneo moría
+  // antes de hacer nada y la UI se quedaba en "Preparando el escáner…" para
+  // siempre. Mismo patrón que mountedRef en useCamera.
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+    };
   }, []);
   // Evita que un doble click/tap en el obturador dispare captureManual() dos
   // veces en paralelo mientras la primera sigue en curso (assessDocQuality,

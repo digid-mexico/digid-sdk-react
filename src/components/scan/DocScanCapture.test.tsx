@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { StrictMode } from 'react';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import { DocScanCapture } from './DocScanCapture';
 import { I18nProvider, es } from '../../i18n';
@@ -214,6 +215,36 @@ describe('DocScanCapture', () => {
     const { container } = renderCapture();
     prepareVideo(container);
     await advanceUntil(() => screen.getByRole('status').textContent === cam.manualNotice, { stepMs: 500, maxMs: 10000 });
+  });
+
+  // Regresión: <StrictMode> monta, desmonta y vuelve a montar en desarrollo.
+  // unmountedRef se marcaba en un efecto de solo-limpieza, sin reiniciarse al
+  // montar, así que tras el ciclo quedaba en true para siempre. Como es la
+  // primera línea de tick() y scheduleTick(), el bucle de escaneo moría antes
+  // de hacer nada: ni detección, ni degradado, ni mensaje — "Preparando el
+  // escáner…" eterno.
+  //
+  // Toda la suite montaba sin StrictMode, igual que el playground, y por eso
+  // no se detectó: es el default de la plantilla React de Vite, o sea la
+  // configuración más común de un consumidor.
+  it('el bucle de escaneo sobrevive al doble montaje de StrictMode', async () => {
+    vi.mocked(docScanReady).mockReturnValue(false);
+
+    const { container } = render(
+      <StrictMode>
+        <I18nProvider value={es}>
+          <DocScanCapture side="front" onCapture={vi.fn()} onCancel={vi.fn()} />
+        </I18nProvider>
+      </StrictMode>,
+    );
+    prepareVideo(container);
+
+    // Si unmountedRef quedó atascado en true, el tick nunca corre y esto
+    // expira: no hay degradado ni aviso.
+    await advanceUntil(
+      () => screen.getByRole('status').textContent === cam.manualNotice,
+      { stepMs: 500, maxMs: 12000 },
+    );
   });
 
   // Regresión: el degradado a manual vivía DESPUÉS de la guarda

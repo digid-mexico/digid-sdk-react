@@ -12,6 +12,26 @@ El proyecto sigue [SemVer](https://semver.org) con las reglas de
 
 ## [Sin publicar]
 
+## [1.0.2] — 2026-07-31
+
+### Corregido
+
+- **La captura de INE seguía colgada en "Preparando el escáner…" con
+  `<StrictMode>`.** 1.0.1 arregló dos problemas reales pero no la causa
+  principal: `unmountedRef` se marcaba en un efecto de solo-limpieza, sin
+  reiniciarse al montar. Con el ciclo montar → desmontar → remontar de
+  StrictMode quedaba en `true` de forma permanente y, como es la primera línea
+  de `tick()` y `scheduleTick()`, el bucle de escaneo moría antes de hacer
+  nada: sin detección, sin degradado y sin mensaje.
+
+### Cambiado
+
+- El playground de desarrollo ahora monta bajo `<StrictMode>`. No usarlo fue lo
+  que permitió que este bug llegara a producción: el entorno de pruebas del SDK
+  era más benigno que el de la mayoría de sus consumidores, porque StrictMode
+  viene por defecto en la plantilla de React de Vite. La suite de tests también
+  cubre ya el doble montaje.
+
 ## [1.0.1] — 2026-07-30
 
 ### Corregido
