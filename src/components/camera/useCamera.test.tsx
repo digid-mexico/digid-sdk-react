@@ -114,4 +114,56 @@ describe('useCamera', () => {
     expect(stopTrack).toHaveBeenCalled();
     expect(result.current.stream).toBeNull();
   });
+
+  // Regresión: con <StrictMode> React monta, desmonta y vuelve a montar en
+  // desarrollo, lo que produce open() → close() → open() en milisegundos. Si
+  // las dos getUserMedia se solapan, el navegador puede devolver tracks
+  // compartidos y el stop() de la primera deja muerta a la segunda: el <video>
+  // nunca alcanza readyState 2 y la captura de INE se queda en "Preparando el
+  // escáner…" para siempre. StrictMode es el default de la plantilla React de
+  // Vite, así que este es el caso común de un consumidor.
+  it('no solapa dos getUserMedia cuando se reabre mientras la primera sigue pendiente', async () => {
+    const enVuelo: Array<(s: MediaStream) => void> = [];
+    let concurrenciaMaxima = 0;
+    let concurrenciaActual = 0;
+
+    (navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>).mockImplementation(
+      () => {
+        concurrenciaActual += 1;
+        concurrenciaMaxima = Math.max(concurrenciaMaxima, concurrenciaActual);
+        return new Promise<MediaStream>((resolve) => {
+          enVuelo.push((s) => {
+            concurrenciaActual -= 1;
+            resolve(s);
+          });
+        });
+      },
+    );
+
+    const { result } = renderHook(() => useCamera());
+
+    // Ciclo de StrictMode: abrir, cerrar por el desmontaje simulado, reabrir.
+    let primera!: Promise<void>;
+    let segunda!: Promise<void>;
+    act(() => { primera = result.current.open(); });
+    act(() => { result.current.close(); });
+    act(() => { segunda = result.current.open(); });
+
+    // Con la serialización, la segunda llamada ni siquiera arrancó todavía.
+    expect(concurrenciaMaxima).toBe(1);
+
+    await act(async () => {
+      enVuelo[0]?.(fakeStream);
+      await primera;
+    });
+    await act(async () => {
+      enVuelo[1]?.(fakeStream);
+      await segunda;
+    });
+
+    // Nunca hubo dos peticiones vivas a la vez...
+    expect(concurrenciaMaxima).toBe(1);
+    // ...y la cámara quedó abierta y utilizable tras el ciclo completo.
+    expect(result.current.stream).toBe(fakeStream);
+  });
 });

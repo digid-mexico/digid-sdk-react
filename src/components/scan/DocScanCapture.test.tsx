@@ -216,6 +216,27 @@ describe('DocScanCapture', () => {
     await advanceUntil(() => screen.getByRole('status').textContent === cam.manualNotice, { stepMs: 500, maxMs: 10000 });
   });
 
+  // Regresión: el degradado a manual vivía DESPUÉS de la guarda
+  // `video.readyState < 2`, así que solo cubría "el worker no carga". Si la
+  // cámara no entregaba frames —permiso a medias, dispositivo tomado por otra
+  // app, o el fallo de doble montaje de StrictMode— el bucle se reprogramaba
+  // indefinidamente y el firmante se quedaba atrapado en "Preparando el
+  // escáner…", sin mensaje ni forma de continuar.
+  it('degrada a captura manual aunque la cámara nunca entregue frames', async () => {
+    vi.mocked(docScanReady).mockReturnValue(false);
+    // A propósito NO se llama prepareVideo(): el <video> se queda en
+    // readyState 0, simulando una cámara que nunca arranca.
+    renderCapture();
+
+    await advanceUntil(
+      () => screen.getByRole('status').textContent === cam.manualNotice,
+      { stepMs: 500, maxMs: 12000 },
+    );
+
+    // Y el firmante tiene salida: el botón de subir archivo sigue disponible.
+    expect(screen.getByTestId('digid-scan-file-input')).toBeInTheDocument();
+  });
+
   it('subir una foto de la galería corre detectDocumentStill y muestra el preview', async () => {
     const OriginalImage = global.Image;
     // La decodificación real de imágenes no es testeable en jsdom (igual que

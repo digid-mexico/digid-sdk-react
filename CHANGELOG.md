@@ -12,6 +12,26 @@ El proyecto sigue [SemVer](https://semver.org) con las reglas de
 
 ## [Sin publicar]
 
+### Corregido
+
+- **La captura de INE se quedaba en "Preparando el escáner…" para siempre en
+  aplicaciones con `<StrictMode>`.** React monta, desmonta y vuelve a montar en
+  desarrollo, produciendo `open() → close() → open()` sobre la cámara en
+  milisegundos. Las dos llamadas a `getUserMedia` se solapaban, el navegador
+  podía devolver tracks compartidos, y el `stop()` de la primera dejaba muerta a
+  la segunda: el `<video>` nunca alcanzaba `readyState 2`. Ahora las aperturas se
+  serializan y nunca hay dos peticiones en vuelo.
+
+  Afecta a la mayoría de integraciones: `<StrictMode>` viene por defecto en la
+  plantilla de React de Vite.
+
+- **No había salida si la cámara no arrancaba.** El degradado a captura manual
+  se evaluaba después de la guarda `video.readyState < 2`, así que solo cubría
+  el caso "el worker de escaneo no carga". Con una cámara que no entregaba
+  frames —permiso a medias, dispositivo tomado por otra app— el bucle se
+  reprogramaba indefinidamente sin mensaje ni alternativa. Ahora el timeout se
+  evalúa al inicio de cada tick y siempre hay salida a captura manual.
+
 ## [1.0.0] — 2026-07-30
 
 Primera versión publicada en npm. Los cambios marcados con ⚠️ rompen

@@ -315,6 +315,15 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
   const tick = useCallback(async () => {
     if (unmountedRef.current || phaseRef.current === 'preview') return; // desmontado o pausado durante el preview
     const video = videoRef.current;
+    // Salida garantizada del estado 'loading'. Va ANTES de la guarda de
+    // readyState a propósito: antes vivía después, así que solo cubría el caso
+    // "el worker no carga". Si la cámara no entregaba frames —permiso a medias,
+    // dispositivo tomado por otra app— el bucle se reprogramaba para siempre y
+    // el firmante se quedaba en "Preparando el escáner…" sin mensaje ni salida.
+    if (phaseRef.current === 'loading' && Date.now() - startTimeRef.current > READY_TIMEOUT_MS) {
+      setPhase('manual');
+      showStatus(cam.manualNotice, false, 'guidance');
+    }
     if (busyRef.current || !video || video.readyState < 2) {
       scheduleTick(TICK_MS_RETRY);
       return;
@@ -439,10 +448,7 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
             ? previous
             : next;
         });
-        if (phaseRef.current === 'loading' && Date.now() - startTimeRef.current > READY_TIMEOUT_MS) {
-          setPhase('manual');
-          showStatus(cam.manualNotice, false, 'guidance');
-        }
+        // (el degradado por timeout se evalúa al inicio del tick)
       }
     } catch {
       stableFramesRef.current = 0;
