@@ -1,6 +1,6 @@
 {
   "name": "@digid-sdk/firma-autografa-react",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "SDK React para el flujo de firma autógrafa de Digid",
   "repository": {
     "type": "git",
