@@ -12,6 +12,49 @@ El proyecto sigue [SemVer](https://semver.org) con las reglas de
 
 ## [Sin publicar]
 
+## [1.3.0] — 2026-08-03
+
+### Añadido
+
+- **Prop `pdfWorkerUrl` en `<FirmaAutografa>`.** Antes solo el componente
+  `PdfViewer` exportado por separado permitía configurar el worker de
+  pdf.js; el componente recomendado no tenía forma de pasarlo. Se propaga a
+  las dos vistas internas que muestran el PDF (revisión y colocación de
+  firmas).
+- **`scan-assets/` ahora incluye `pdf.worker.min.mjs`.** Pineado a la
+  versión de `pdfjs-dist` del `package.json` del SDK. Los integradores que ya
+  copian esa carpeta para el escáner de INE no necesitan ningún paso extra:
+  el visor de PDF cae ahí automáticamente si la resolución vía
+  `import.meta.url` falla — ver [sección 10.2 de la
+  guía](docs/GUIA-INTEGRACION.md#102-worker-del-visor-pdf-todos-los-proyectos).
+
+### Corregido
+
+- **Negar el permiso de cámara dejaba al firmante sin salida.**
+  `GuidedCameraCapture` y `DocScanCapture` mostraban un mensaje de error sin
+  ningún control: sin reintentar, sin cancelar, sin poder subir un archivo.
+  Ahora el error ofrece **Reintentar** (reabre la cámara) y **Regresar**, más
+  **Subir archivo** en `DocScanCapture` (INE), donde la carga de galería ya
+  era una alternativa válida. El mensaje distingue el permiso denegado
+  (`NotAllowedError`) del resto de fallos de cámara.
+- **La afirmación de que "el visor resuelve el worker automáticamente en
+  bundlers ESM" era falsa para consumidores reales instalando desde npm.**
+  Vite pre-empaqueta las dependencias con esbuild, que no reescribe
+  `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)`: el
+  worker devolvía 404 en silencio y el visor se quedaba en "Página de 0" sin
+  ningún mensaje de error. La guía de integración (§10.1/10.2) y el README ya
+  no afirman resolución automática sin condiciones — documentan las dos
+  formas de configurarlo explícitamente.
+
+### Cambiado
+
+- **La selfie ahora es obligatoria por cámara.** El paso abre la cámara de
+  inmediato, sin la pantalla de instrucción previa que sí conservan INE
+  frente/reverso, y ya no ofrece subir un archivo como alternativa — la
+  identidad del firmante en la selfie debe capturarse en vivo. Con una selfie
+  ya guardada (proceso retomado), el fast path a su preview no cambia.
+  `SelfieInstruction` se eliminó del paquete al quedar sin uso.
+
 ## [1.2.0] — 2026-08-03
 
 ### Cambiado

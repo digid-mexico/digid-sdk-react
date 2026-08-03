@@ -78,11 +78,12 @@ En los pasos de INE frente/reverso, el firmante ve primero una pantalla de instr
 luego la cámara con un marco guía ID-1: el SDK detecta y **recorta automáticamente** el
 documento (contorno + corrección de perspectiva vía OpenCV, en el propio dispositivo, sin
 enviar nada a ningún servidor) en cuanto queda bien alineado dentro del marco y nítido, y
-muestra un preview con el recorte antes de continuar. En el paso de selfie, el firmante
-también ve primero una instrucción y luego la cámara frontal, que detecta el rostro
-(MediaPipe) para su propia captura automática dentro de un óvalo guía. La captura manual
-con el botón o la carga de una foto desde archivo/galería siempre están disponibles como
-alternativa en los tres pasos. Ver la
+muestra un preview con el recorte antes de continuar. La captura manual con el botón o la
+carga de una foto desde archivo/galería siempre están disponibles como alternativa en
+estos dos pasos. En el paso de selfie, la cámara frontal se abre de inmediato —**sin
+pantalla de instrucción ni alternativa de archivo: la selfie es obligatoria por
+cámara**— y detecta el rostro (MediaPipe) para su propia captura automática dentro de un
+óvalo guía. Ver la
 [guía de integración](docs/GUIA-INTEGRACION.md#12-captura-automática) para el detalle de
 `detectionAssets` (selfie) y la [sección 1.3](docs/GUIA-INTEGRACION.md#13-escaneo-de-documentos-ine)
 para `scanAssets` (INE) y CSP.
@@ -105,6 +106,7 @@ sin romper el flujo.
 | tokenTransport | 'both' \| 'header' \| 'query' | Cómo viaja el token (default: `'both'`). Cambia a `'header'` en cuanto el backend lea `X-Digid-Token` — ver sección 5.1 de la guía |
 | theme | DigidTheme | Colores opcionales; los estilos del cliente configurados en Digid tienen prioridad |
 | termsUrl | string | URL de términos y condiciones |
+| pdfWorkerUrl | string | URL del worker de `pdfjs-dist` para el visor de PDF (default: resolución automática, con fallback a `/digid-scan/pdf.worker.min.mjs`) — ver más abajo |
 | detectionAssets | DetectionAssets | URLs propias para autoalojar los modelos de detección de la captura automática (default: CDNs públicos); solo usados por la selfie — ver nota abajo sobre `zxingWasmUrl` |
 | scanAssets | ScanAssets | URL propia del worker de escaneo OpenCV (default: `/digid-scan/scan-worker.js`), usado por los pasos de INE frente/reverso para el recorte automático del documento; requiere servir `scan-assets/` en tu propio origen (ver sección 1.3 de la guía) |
 | onComplete | () => void | Proceso terminado con éxito |
@@ -118,11 +120,16 @@ sin romper el flujo.
 > `DetectionAssets` por compatibilidad, reservado por si un futuro paso vuelve a
 > necesitarlo.
 
-### Visor PDF en consumidores CommonJS
+### Worker del visor PDF
 
-El worker de pdf.js se resuelve automáticamente en bundlers ESM (Vite, Next.js, webpack 5).
-Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al componente
-`PdfViewer` exportado, o configura `pdfjs-dist/build/pdf.worker.min.mjs` como asset accesible.
+**No asumas que se resuelve solo.** El SDK intenta resolver el worker de pdf.js vía
+`import.meta.url`, pero Vite (y otros bundlers basados en esbuild) no reescriben esa URL
+al pre-empaquetar dependencias: el worker puede devolver 404 en silencio y el visor se
+queda en "Página de 0". Si ya sirves `scan-assets/` (paso 2 de arriba) no necesitas nada
+más — esa carpeta incluye `pdf.worker.min.mjs` y el visor cae ahí si la resolución
+automática falla. Si no, pasa la URL con la prop `pdfWorkerUrl` de `<FirmaAutografa>` (o
+`workerSrc` si usas `PdfViewer` por separado). Detalle completo en la
+[sección 10.2 de la guía](docs/GUIA-INTEGRACION.md#102-worker-del-visor-pdf-todos-los-proyectos).
 
 ## Requisitos del backend
 
@@ -140,13 +147,14 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
 ## Seguridad
 
 - Todo el estado vive en memoria (sin localStorage/sessionStorage).
-- Todas las rutas de subida de imagen (INE, selfie y el botón de galería del
-  escáner) validan por magic bytes, limitan el archivo a 10 MB y rechazan
-  imágenes que decodifiquen a más de 50 MP (bombas de descompresión).
+- Todas las rutas de subida de imagen (INE y el botón de galería del escáner;
+  la selfie no tiene subida de archivo, es obligatoria por cámara) validan por
+  magic bytes, limitan el archivo a 10 MB y rechazan imágenes que decodifiquen
+  a más de 50 MP (bombas de descompresión).
 - Las imágenes se re-encodean a JPEG, lo que elimina los metadatos EXIF
-  (incluido GPS). Excepción conocida: si el re-encode falla, los pasos de INE y
-  selfie suben el archivo original **con EXIF intacto** — ver `normalizeToJpeg`
-  en `src/utils/image.ts`.
+  (incluido GPS). Excepción conocida: si el re-encode falla, el paso de INE
+  sube el archivo original **con EXIF intacto** — ver `normalizeToJpeg` en
+  `src/utils/image.ts`.
 - El token puede mandarse en un header en vez de la query string
   (`tokenTransport`), para que no quede escrito en los logs de acceso.
 - La cámara se apaga en cuanto se captura o se desmonta el componente.

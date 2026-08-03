@@ -83,6 +83,7 @@ requerir algo nuevo del backend.
 | 0.8.x | cualquiera | `tokenTransport='both'` funciona con el backend legacy |
 | — | con `X-Digid-Token` | requerido solo si se usa `tokenTransport='header'` |
 | 1.2.x | con `document_pdf`/`signature_image` (desde 2026-07-29) | sin ellos, el PDF no carga cross-origin; el proxy de la sección 6.3 de la guía es el workaround |
+| 1.3.x | igual que 1.2.x | `pdfWorkerUrl` y el fallback del worker de pdf.js en `scan-assets/` son enteramente del lado del cliente; sin requisitos nuevos de backend |
 
 ---
 

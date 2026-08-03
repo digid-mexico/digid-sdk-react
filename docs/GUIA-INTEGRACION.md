@@ -1,6 +1,6 @@
 # Guía de integración — SDK de Firma Autógrafa de Digid
 
-`@digid-sdk/firma-autografa-react` · v1.1.0
+`@digid-sdk/firma-autografa-react` · v1.3.0
 
 Esta guía está dirigida a equipos de desarrollo que quieren integrar el proceso de
 **firma autógrafa de Digid** dentro de su propia aplicación web, sin redirigir a sus
@@ -19,7 +19,7 @@ el mismo proceso certificado que ofrece Digid:
 | 1 | **Revisión del documento** | El firmante ve el PDF a firmar, puede descargarlo y acepta términos y condiciones. Si el documento requiere verificación de identidad, se muestra el aviso de consentimiento KYC. El visor incluye controles de zoom (50%–300%) y navegación rápida entre páginas. |
 | 2 | **Identificación (frente)** | El firmante ve primero una pantalla de instrucción con recomendaciones de captura y, al continuar, la cámara se abre con un marco guía ID-1 superpuesto: en cuanto el SDK detecta —en el propio dispositivo, vía OpenCV— la credencial bien alineada dentro del marco y nítida, **recorta automáticamente el documento** (contorno + corrección de perspectiva) y muestra un preview con el recorte antes de continuar. También se puede capturar manualmente en cualquier momento con el botón de la cámara (recorta el marco tal cual, sin gate de calidad) o subir un archivo/foto de galería. |
 | 3 | **Identificación (reverso)** | Mismo flujo de instrucción + marco guiado + recorte automático que el paso anterior. |
-| 4 | **Selfie** | El firmante ve primero una pantalla de instrucción (mismo estilo que los pasos 2 y 3) y, al continuar, la cámara frontal se abre con un óvalo guía: el SDK detecta el rostro del firmante centrado y a buen tamaño dentro del óvalo para capturar automáticamente, con las mismas alternativas de captura manual o carga de archivo. |
+| 4 | **Selfie** | La cámara frontal se abre de inmediato, sin pantalla de instrucción previa, con un óvalo guía: el SDK detecta el rostro del firmante centrado y a buen tamaño dentro del óvalo para capturar automáticamente (o con el botón de captura manual). **La selfie es obligatoria por cámara**: a diferencia de los pasos 2 y 3, no hay alternativa de subir un archivo — ver [sección 9](#9-permisos-del-navegador-y-compatibilidad). |
 | 5 | **Creación de la firma** | El firmante dibuja su firma autógrafa en un lienzo táctil (funciona con dedo, stylus o mouse). |
 | 6 | **Colocación de firmas** | El firmante confirma una por una las posiciones de su firma sobre el documento, viéndolas superpuestas en el PDF real. La previsualización muestra la posición y el tamaño exactos con los que quedará estampada en el documento final (37×24mm físicos). |
 | 7 | **Confirmación** | Pantalla de éxito. El documento queda firmado en Digid y tu aplicación recibe el callback `onComplete`. |
@@ -141,6 +141,11 @@ UI; `opencv.js` solo se descarga de forma perezosa **dentro del worker**, y solo
 cuando el firmante llegue al paso de identificación — nunca al cargar el bundle del
 SDK.
 
+> Desde esta versión, `scan-assets/` también incluye `pdf.worker.min.mjs` (worker
+> del visor de PDF, ver [sección 10.2](#102-worker-del-visor-pdf-todos-los-proyectos)):
+> pineado a la versión de `pdfjs-dist` del `package.json` del SDK — se actualiza junto
+> con esa dependencia.
+
 **Servir `scan-assets/` es necesario para que el escáner funcione.** Los Web Workers
 no pueden cargarse desde un CDN cross-origin (a diferencia de MediaPipe/zxing en la
 [sección 1.2](#12-captura-automática-selfie)), así que copia la carpeta completa a tu
@@ -234,11 +239,13 @@ Antes de integrar necesitas:
 3. **React 18 o superior** en tu proyecto (el SDK lo declara como *peer dependency*).
 4. **HTTPS en producción.** La captura con cámara usa `getUserMedia`, que los
    navegadores solo permiten en contextos seguros (`https://` o `localhost`).
-5. **Que Digid habilite tu dominio en su configuración de CORS.** El SDK llama a la
-   API de Digid directamente desde el navegador del firmante; si tu aplicación corre
-   en un dominio distinto al del backend de Digid, ese dominio debe estar en la lista
-   de orígenes permitidos. Solicítalo al equipo de Digid indicando el/los dominios
-   exactos (incluyendo subdominio y esquema).
+5. **CORS: hoy no necesitas registrar tu dominio.** Los endpoints que consume el SDK
+   (`/api/*`) están autorizados por token, no por origen, así que no hace falta
+   pedirle a Digid el alta de tu dominio para empezar a integrar. Esto puede cambiar
+   si Digid endurece más adelante el allowlist de CORS de `/api/*`; si ese día llega,
+   esta sección se actualizará con el paso nuevo (mientras tanto, el proxy opcional
+   de la [sección 6.3](#63-proxy-local-opcional) sigue siendo la salida si algo
+   cambia antes de que se documente aquí).
 
 ---
 
@@ -441,6 +448,7 @@ que no hace falta incluirlo en ninguna de las dos configuraciones.
 | `tokenTransport` | `'both' \| 'header' \| 'query'` | — | `'both'` | Cómo viaja el token del firmante hacia el backend (ver [sección 5.1](#51-cómo-viaja-el-token-tokentransport)). Cámbialo a `'header'` para que el token deje de quedar escrito en los logs de acceso. |
 | `theme` | `DigidTheme` | — | — | Colores de tu marca (ver [sección 8](#8-personalización-visual)). Los estilos que tu cuenta tenga configurados en Digid tienen prioridad sobre esta prop. |
 | `termsUrl` | `string` | — | T&C de Digid | URL de los términos y condiciones que se enlazan en el paso 1. |
+| `pdfWorkerUrl` | `string` | — | resolución automática, con fallback a `/digid-scan/pdf.worker.min.mjs` | URL del worker de `pdfjs-dist` para el visor de PDF (ver [sección 10.2](#102-worker-del-visor-pdf-todos-los-proyectos)). |
 | `detectionAssets` | `DetectionAssets` | — | CDNs públicos | URLs propias para autoalojar el modelo de detección de rostro de la selfie (ver [sección 1.2](#12-captura-automática-selfie)). `zxingWasmUrl` ya no se usa (ver nota en esa sección). |
 | `scanAssets` | `ScanAssets` | — | `/digid-scan/scan-worker.js` | URL propia del worker de escaneo OpenCV que usan los pasos de INE frente/reverso (ver [sección 1.3](#13-escaneo-de-documentos-ine)). Requiere servir `scan-assets/` en tu propio origen. |
 | `onComplete` | `() => void` | — | — | El firmante completó todo el proceso; el documento quedó firmado. |
@@ -550,7 +558,8 @@ lo envuelve; si tu diseño requiere un ancho distinto, sobreescribe `max-width` 
 
 | Permiso | Cuándo se solicita | Si el usuario lo niega |
 |---|---|---|
-| **Cámara** | En los pasos de captura de identificación (en móvil se abre por defecto; en escritorio, al elegir "abrir la cámara"). | El firmante puede subir un archivo JPEG/PNG en su lugar. |
+| **Cámara (INE frente/reverso)** | Al abrir la cámara desde la pantalla de instrucción (en móvil se abre por defecto; en escritorio, al elegir "abrir la cámara"). | El firmante puede subir un archivo JPEG/PNG en su lugar. La pantalla de error de la cámara ofrece Reintentar, Regresar y Subir archivo. |
+| **Cámara (selfie)** | Se abre de inmediato al llegar al paso, sin pantalla de instrucción previa. | **Sin alternativa de archivo: la selfie exige cámara.** La pantalla de error ofrece Reintentar y Regresar (al paso anterior del flujo, o a la selfie ya guardada si el firmante retomó un proceso interrumpido); debe conceder el permiso para continuar. |
 | **Geolocalización** | Solo si el emisor del documento configuró la firma con evidencia de ubicación. | El proceso continúa sin coordenadas. |
 
 **Navegadores soportados:** versiones recientes (últimos 2 años) de Chrome, Edge,
@@ -567,21 +576,45 @@ con cámara trasera, firma con el dedo). Asegúrate de servir tu página con
 
 ### 10.1 Bundlers ESM (Vite, Next.js, webpack 5, Rollup)
 
-Sin configuración extra: el visor de PDF resuelve automáticamente el *worker* de
-`pdfjs-dist` mediante `import.meta.url`.
+**No asumas que el worker de pdf.js se resuelve solo.** El SDK intenta resolverlo vía
+`import.meta.url`, pero Vite (y otros bundlers basados en esbuild) pre-empaquetan las
+dependencias y no reescriben esa URL: el worker puede devolver 404 y el visor se
+queda en **"Página de 0" sin ningún mensaje de error visible**. Instalando desde npm,
+necesitas configurarlo explícitamente con una de las dos opciones de la
+[sección 10.2](#102-worker-del-visor-pdf-todos-los-proyectos).
 
-### 10.2 Consumidores CommonJS (Jest con transform CJS, SSR Node, bundlers legados)
+### 10.2 Worker del visor PDF (todos los proyectos)
 
-En el build CommonJS `import.meta` no existe, por lo que el worker de pdf.js no puede
-resolverse solo. Opciones:
+Dos formas de configurarlo — basta con una, y si ya sirves `scan-assets/` (INE, ver
+[sección 1.3](#13-escaneo-de-documentos-ine)) **no necesitas hacer nada más**: esa
+carpeta incluye `pdf.worker.min.mjs` desde esta versión, y el visor cae ahí solo si
+la resolución automática falla.
 
-1. Sirve `pdfjs-dist/build/pdf.worker.min.mjs` como asset estático y pásalo al
-   componente exportado `PdfViewer` mediante la prop `workerSrc`, o
-2. Configura `GlobalWorkerOptions.workerSrc` de `pdfjs-dist` globalmente antes de
-   montar el SDK.
+1. **Prop `pdfWorkerUrl` en `<FirmaAutografa>`** — la forma recomendada de usar el SDK:
 
-Si no lo configuras, el visor mostrará el estado de error y registrará en consola un
-mensaje indicando exactamente esto.
+   ```tsx
+   <FirmaAutografa
+     token={token}
+     baseUrl="https://digidmexico.com.mx"
+     pdfWorkerUrl="/digid-scan/pdf.worker.min.mjs"
+   />
+   ```
+
+2. **Prop `workerSrc` en `PdfViewer`** — si usas ese componente exportado por
+   separado, fuera de `<FirmaAutografa>`, para armar tu propio flujo:
+
+   ```tsx
+   <PdfViewer url={pdfUrl} workerSrc="/digid-scan/pdf.worker.min.mjs" />
+   ```
+
+**Consumidores CommonJS** (Jest con transform CJS, SSR Node, bundlers legados): en el
+build `.cjs` `import.meta` no existe, así que la resolución automática siempre falla
+ahí — una de las dos props de arriba es obligatoria, o configura
+`GlobalWorkerOptions.workerSrc` de `pdfjs-dist` globalmente antes de montar el SDK.
+
+Sin ninguna de estas opciones y sin `scan-assets/` servido, el visor cae en el
+fallback final (`/digid-scan/pdf.worker.min.mjs`) igualmente; si tu proyecto no sirve
+esa ruta, el worker no cargará y el visor mostrará su estado de error.
 
 ### 10.3 Content Security Policy (CSP)
 
@@ -627,13 +660,15 @@ sección 1.2) sin romper el resto del flujo — igual que el escáner de INE si
 | Síntoma | Causa probable | Solución |
 |---|---|---|
 | `onError` inmediato con código `NETWORK` y errores CORS en consola | Tu dominio no está en la lista de orígenes permitidos de Digid | Solicita a Digid el alta de tu dominio exacto (esquema + subdominio). Alternativa: el proxy opcional de la [sección 6.3](#63-proxy-local-opcional) con `baseUrl=""`. |
-| El PDF no carga (token válido) | El backend de Digid no incluye aún los endpoints `document_pdf`/`signature_image` (añadidos el 2026-07-29) | Confirma con Digid la versión del backend, o usa el proxy opcional de la [sección 6.3](#63-proxy-local-opcional) mientras se actualiza. |
+| El visor del PDF se queda en **"Página de 0"** sin ningún mensaje de error, y en la pestaña Red hay una petición a `pdf.worker.min.mjs` con **404** | El worker de pdf.js no se resolvió — Vite/esbuild no reescribe `import.meta.url` al pre-empaquetar dependencias | Sirve `scan-assets/` (ya incluye el worker, sin pasos extra si ya lo copiaste para la INE) o pasa `pdfWorkerUrl` — ver [sección 10.2](#102-worker-del-visor-pdf-todos-los-proyectos). |
+| El PDF no carga y en la pestaña Red la petición a `document_pdf` aparece **sin código de estado** (ni 200 ni 4xx/5xx), pero descargar esa misma URL directo en el navegador sí funciona | Bloqueo CORS: el navegador descarta la respuesta después de recibirla, así que no siempre hay un código de estado visible — **un 200 tampoco lo descarta**, revisa igual la consola por avisos de CORS | Con backend 2026-07-29+ y SDK 1.2+, `document_pdf`/`signature_image` viven bajo `/api/*` y no dependen de CORS (autorizados por token) — no debería ocurrir. Contra un backend más viejo, usa el proxy opcional de la [sección 6.3](#63-proxy-local-opcional) mientras se actualiza. |
+| El PDF no carga (token válido), sin los síntomas de las dos filas anteriores | El backend de Digid no incluye aún los endpoints `document_pdf`/`signature_image` (añadidos el 2026-07-29) | Confirma con Digid la versión del backend, o usa el proxy opcional de la [sección 6.3](#63-proxy-local-opcional) mientras se actualiza. |
 | `onError` con `INVALID_TOKEN` | Token mal copiado, vencido, o proceso ya cerrado | Verifica que pasas el token completo y que el documento sigue vigente. |
-| La cámara no abre | Página servida sin HTTPS, o permiso denegado | Sirve por HTTPS; el firmante siempre puede subir archivo como alternativa. |
+| La cámara no abre (INE) | Página servida sin HTTPS, o permiso denegado | Sirve por HTTPS; el firmante siempre puede subir archivo como alternativa. |
+| La cámara no abre (selfie) | Página servida sin HTTPS, o permiso denegado | Sirve por HTTPS. **Sin alternativa de archivo** (la selfie exige cámara, ver [sección 9](#9-permisos-del-navegador-y-compatibilidad)): la pantalla de error ofrece Reintentar y Regresar. |
 | En INE no hay detección en vivo ni captura automática, y en consola aparece "Worker de escaneo no disponible" | `scan-assets/` no se está sirviendo en la URL que espera el SDK | Copia la carpeta (`cp -R node_modules/@digid-sdk/firma-autografa-react/scan-assets public/digid-scan`) y comprueba que `/digid-scan/scan-worker.js` responde 200. Si la sirves en otra ruta, pásala en `scanAssets.workerUrl` (ver [sección 1.3](#13-escaneo-de-documentos-ine)). |
 | Funcionaba en local y tras desplegar dejó de funcionar el escáner | `npm ci` borró `node_modules` y con él la copia manual de `scan-assets/` | Engancha la copia al `postinstall` en vez de hacerla a mano. |
 | La selfie sí captura sola pero la INE no | Son dos mecanismos distintos: la selfie usa MediaPipe (CDN) y la INE el worker de OpenCV (local) | El síntoma apunta a `scan-assets/`, no a `detectionAssets`. |
-| El PDF no se muestra (mensaje de error del visor) | Worker de pdf.js no resuelto (build CJS) o PDF inaccesible | Ver sección 10.2; revisa en la pestaña Red si `/api/archivofirma/document_pdf` responde 200. |
 | El SDK muestra directamente la pantalla de éxito | El firmante ya había completado el proceso | Comportamiento esperado (estado del proceso en Digid). |
 | Los colores de mi `theme` no se aplican | Tu cuenta tiene estilos de marca configurados en Digid | Los estilos de la plataforma tienen prioridad; ajústalos en Digid o pide su retiro. |
 

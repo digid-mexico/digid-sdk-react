@@ -31,6 +31,19 @@ vi.mock('./pdf/PdfViewer', () => {
   };
 });
 
+vi.mock('./camera/GuidedCameraCapture', () => ({
+  // La selfie ahora abre la cámara directo (Task 27): se mockea para
+  // simular la confirmación de una captura sin cámara real en jsdom.
+  GuidedCameraCapture: (props: { onCapture?: (dataUrl: string) => void; onCancel?: () => void }) => (
+    <div data-testid="guided-camera-mock">
+      <button type="button" onClick={props.onCancel}>cerrar cámara mock</button>
+      <button type="button" onClick={() => props.onCapture?.('data:image/jpeg;base64,selfiecam')}>
+        confirmar selfie mock
+      </button>
+    </div>
+  ),
+}));
+
 const BASE = 'https://backend.test';
 const server = setupServer(
   http.get(`${BASE}/api/archivofirma/start_autografa`, () =>
@@ -103,10 +116,9 @@ describe('FirmaAutografa — flujo completo', () => {
     await userEvent.upload(screen.getByTestId('digid-file-input'), jpeg);
     await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
 
-    // Paso 4: selfie
-    await screen.findByText(es.selfie.title);
-    await userEvent.upload(screen.getByTestId('digid-file-input'), jpeg);
-    await userEvent.click(screen.getByRole('button', { name: es.idCapture.continue }));
+    // Paso 4: selfie — cámara obligatoria, abre directo sin instrucción ni
+    // alternativa de archivo (Task 27); GuidedCameraCapture está mockeada.
+    await userEvent.click(await screen.findByRole('button', { name: 'confirmar selfie mock' }));
 
     // Paso 5: crear firma (dibujar)
     await screen.findByText(es.createSign.heading);
