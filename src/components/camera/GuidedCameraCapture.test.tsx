@@ -391,6 +391,38 @@ describe('GuidedCameraCapture', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(es.errors.camera);
   });
 
+  it('el error de cámara ofrece Reintentar (reabre la cámara) y Regresar (dispara onCancel)', async () => {
+    const getUserMedia = vi.fn().mockRejectedValue(new Error('sin permiso'));
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+    const onCancel = vi.fn();
+    renderGuided({ guide: 'id', detector: 'face-small', onCancel });
+    await flush(0);
+
+    fireEvent.click(screen.getByRole('button', { name: es.idCapture.back }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+
+    const callsBefore = getUserMedia.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: es.capture.retry }));
+    await flush(0);
+    expect(getUserMedia.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('distingue el permiso denegado (NotAllowedError) del resto de fallos de cámara', async () => {
+    // Object.assign en vez de `new DOMException(...)`: en jsdom DOMException
+    // no es instanceof Error, así que useCamera la reenvuelve en un Error
+    // genérico y pierde el `.name` — un Error real con `.name` asignado
+    // reproduce fielmente lo que entrega un navegador real.
+    const permissionError = Object.assign(new Error('denied'), { name: 'NotAllowedError' });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockRejectedValue(permissionError) },
+    });
+    renderGuided({ guide: 'id', detector: 'face-small' });
+    await flush(0);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(es.capture.permissionDenied);
+  });
+
   it('el aspecto del stage y la máscara SVG coinciden exactamente con guideRect(...)*100 (guide="id")', async () => {
     const detectorFn: FrameDetector = vi.fn().mockResolvedValue(null);
     vi.mocked(createFaceFrameDetector).mockResolvedValue(detectorFn);

@@ -408,6 +408,44 @@ describe('DocScanCapture', () => {
     expect(props.onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('si getUserMedia falla, ofrece Reintentar, Regresar y Subir archivo (no deja al firmante sin salida)', async () => {
+    const getUserMedia = vi.fn().mockRejectedValue(new Error('sin permiso'));
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+    const { props } = renderCapture();
+    await flush(0);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(es.errors.camera);
+
+    fireEvent.click(screen.getByRole('button', { name: es.idCapture.back }));
+    expect(props.onCancel).toHaveBeenCalledTimes(1);
+
+    const callsBefore = getUserMedia.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: es.capture.retry }));
+    await flush(0);
+    expect(getUserMedia.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('el error de cámara distingue NotAllowedError y "Subir archivo" abre el input de galería', async () => {
+    // Object.assign en vez de `new DOMException(...)`: en jsdom DOMException
+    // no es instanceof Error, así que useCamera la reenvuelve y pierde el
+    // `.name` — un Error real con `.name` asignado reproduce lo que entrega
+    // un navegador real.
+    const permissionError = Object.assign(new Error('denied'), { name: 'NotAllowedError' });
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockRejectedValue(permissionError) },
+    });
+    renderCapture();
+    await flush(0);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(es.capture.permissionDenied);
+
+    const input = screen.getByTestId('digid-scan-file-input') as HTMLInputElement;
+    const clickSpy = vi.spyOn(input, 'click');
+    fireEvent.click(screen.getByRole('button', { name: cam.gallery }));
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('el overlay de detección se espeja cuando la cámara es de escritorio (webcam frontal)', async () => {
     vi.mocked(docScanReady).mockReturnValue(true);
     vi.mocked(detectDocument).mockResolvedValue({

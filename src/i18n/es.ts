@@ -134,6 +134,8 @@ export const es = {
     unavailable: 'La captura automática no está disponible; usa el botón para capturar.',
     manualButton: 'Capturar manualmente',
     cancel: 'Cancelar',
+    retry: 'Reintentar',
+    permissionDenied: 'Permiso de cámara denegado. Actívalo en tu navegador y reintenta.',
   },
   createSign: {
     title: 'Capturar firma',

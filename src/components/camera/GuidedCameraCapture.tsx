@@ -10,6 +10,7 @@ import type { DetectionResult, FrameDetector } from '../../detection/types';
 import { guideRect, type GuideKind } from './guideRect';
 import { ScanPreviewLayout } from '../scan/ScanPreviewLayout';
 import { acceptBarcode, acceptFaceSelfie, acceptFaceSmall } from './acceptance';
+import { cameraErrorMessage } from './cameraError';
 
 export type { GuideKind };
 export type DetectorKind = 'face-small' | 'face-selfie' | 'barcode' | 'none';
@@ -196,7 +197,23 @@ export function GuidedCameraCapture({
     sampleWidth: detector === 'barcode' ? BARCODE_SAMPLE_WIDTH : undefined,
   });
 
-  if (error) return <p role="alert">{s.errors.camera}</p>;
+  // Antes era un <p> suelto sin salida: negar el permiso dejaba al firmante
+  // sin poder reintentar, cancelar ni continuar de ningún modo.
+  if (error) {
+    return (
+      <div className="digid-camera digid-guided-camera digid-guided-camera--error">
+        <p role="alert">{cameraErrorMessage(error, s)}</p>
+        <div className="digid-footer">
+          {onCancel && (
+            <Button variant="secondary" onClick={() => { close(); onCancel(); }}>
+              {s.idCapture.back}
+            </Button>
+          )}
+          <Button onClick={() => void open()}>{s.capture.retry}</Button>
+        </div>
+      </div>
+    );
+  }
 
   const statusText = statusMessage(auto.status, guide, s);
   const gx = rect.x * 100;

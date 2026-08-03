@@ -15,6 +15,7 @@ import {
   type MutableRefObject,
 } from 'react';
 import { useCamera } from '../camera/useCamera';
+import { cameraErrorMessage } from '../camera/cameraError';
 import { Button } from '../ui/Button';
 import { useStrings } from '../../i18n';
 import { FlowContext } from '../../core/FlowContext';
@@ -607,7 +608,44 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
     void open();
   }, [open]);
 
-  if (error) return <p role="alert">{s.errors.camera}</p>;
+  // Input de galería extraído (no solo JSX inline en el return principal):
+  // el estado de error también lo necesita para ofrecer "Subir archivo".
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      // Igual que los inputs de IdCaptureStep/SelfieStep: solo los dos
+      // formatos que validateImageFile acepta por magic bytes.
+      accept="image/png,image/jpeg"
+      hidden
+      data-testid="digid-scan-file-input"
+      onChange={(e) => {
+        const f = e.target.files?.[0];
+        if (f) processFile(f);
+        e.target.value = '';
+      }}
+    />
+  );
+
+  // Antes era un <p> suelto sin salida: negar el permiso dejaba al firmante
+  // sin poder reintentar, cancelar ni subir un archivo en su lugar.
+  if (error) {
+    return (
+      <div className="digid-scan digid-scan--error">
+        <p role="alert">{cameraErrorMessage(error, s)}</p>
+        <div className="digid-footer">
+          <Button variant="secondary" onClick={() => { close(); onCancel(); }}>
+            {s.idCapture.back}
+          </Button>
+          <Button variant="secondary" onClick={() => fileRef.current?.click()}>
+            {cam.gallery}
+          </Button>
+          <Button onClick={() => void open()}>{s.capture.retry}</Button>
+        </div>
+        {fileInput}
+      </div>
+    );
+  }
 
   if (preview) {
     return (
@@ -707,20 +745,7 @@ export function DocScanCapture({ side, onCapture, onCancel }: DocScanCaptureProp
           </div>
           <ScanTipsSheet open={showTips} onClose={() => setShowTips(false)} />
         </div>
-        <input
-          ref={fileRef}
-          type="file"
-          // Igual que los inputs de IdCaptureStep/SelfieStep: solo los dos
-          // formatos que validateImageFile acepta por magic bytes.
-          accept="image/png,image/jpeg"
-          hidden
-          data-testid="digid-scan-file-input"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) processFile(f);
-            e.target.value = '';
-          }}
-        />
+        {fileInput}
       </div>
     </div>
   );
