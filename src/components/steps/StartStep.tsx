@@ -10,7 +10,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function StartStep() {
   const s = useStrings();
-  const { state, dispatch, termsUrl, api, notify, setBusy } = useFlow();
+  const { state, dispatch, termsUrl, api, notify, setBusy, pdfWorkerUrl } = useFlow();
   const data = state.startData!;
   const [accepted, setAccepted] = useState(false);
   const needsKyc =
@@ -122,7 +122,7 @@ export function StartStep() {
             primero en el DOM para que en móvil (columnas apiladas) el firmante
             lo vea antes que las acciones. */}
         <div className="digid-start__main">
-          <PdfViewer url={pdfUrl} toolbar />
+          <PdfViewer url={pdfUrl} toolbar workerSrc={pdfWorkerUrl} />
           <div className="digid-download-box">
             <a href={api.fileUrl(`/docments/verarchivo/${data.document.id}`)} target="_blank" rel="noopener noreferrer">
               {s.start.download}

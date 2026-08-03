@@ -14,6 +14,8 @@ export interface FlowContextValue {
   notify: (kind: 'success' | 'error' | 'warning', message: string) => void;
   setBusy: (busy: boolean) => void;
   termsUrl: string;
+  /** URL del worker de pdfjs-dist; ver prop `pdfWorkerUrl` de <FirmaAutografa> (Task 27). */
+  pdfWorkerUrl?: string;
   /** URLs configurables para los detectores on-device (MediaPipe/zxing); ver Task 21. */
   detectionAssets?: DetectionAssets;
   /** URL configurable del worker de escaneo OpenCV (núcleo portado en Task 22; aún sin consumir desde los steps). */

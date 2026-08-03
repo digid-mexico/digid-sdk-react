@@ -45,11 +45,20 @@ interface Props {
   toolbar?: boolean;
 }
 
+// Well-known path del worker autoalojado: scan-assets/ ya lo incluye (Task 27,
+// pineado a la versión de pdfjs-dist en package.json — actualizar el archivo
+// copiado si se sube esa dependencia), y los integradores ya sirven esa
+// carpeta en /digid-scan/ para el escáner de INE.
+const FALLBACK_WORKER_SRC = '/digid-scan/pdf.worker.min.mjs';
+
 /**
  * Configura pdfjs.GlobalWorkerOptions.workerSrc, en orden de prioridad:
  * 1. La prop `workerSrc` explícita.
  * 2. Un valor ya configurado por el consumidor (p.ej. de forma global).
- * 3. Resolución automática vía `import.meta.url` (solo funciona en ESM).
+ * 3. Resolución automática vía `import.meta.url` (solo funciona en ESM, y
+ *    algunos bundlers ESM tampoco la reescriben al pre-empaquetar — p.ej.
+ *    Vite/esbuild en dev, ver sección 10.1 de la guía de integración).
+ * 4. Fallback final: FALLBACK_WORKER_SRC.
  */
 function configureWorker(pdfjs: typeof import('pdfjs-dist'), workerSrc?: string): void {
   if (workerSrc) {
@@ -64,16 +73,11 @@ function configureWorker(pdfjs: typeof import('pdfjs-dist'), workerSrc?: string)
       'pdfjs-dist/build/pdf.worker.min.mjs',
       import.meta.url,
     ).toString();
-  } catch (err) {
+  } catch {
     // esbuild reemplaza `import.meta` por `{}` en el build .cjs, así que esto
-    // siempre falla para consumidores CJS. No hay forma automática de
-    // resolverlo: deben pasar la prop `workerSrc`.
-    console.error(
-      '[PdfViewer] No fue posible resolver pdf.worker.min.mjs automáticamente ' +
-        '(probablemente estás en un entorno CJS). Pasa la prop `workerSrc` con ' +
-        'la URL del worker de pdfjs-dist.',
-      err,
-    );
+    // siempre falla para consumidores CJS. Sin prop ni configuración previa,
+    // usa el worker que scan-assets/ ya publica en el propio origen.
+    pdfjs.GlobalWorkerOptions.workerSrc = FALLBACK_WORKER_SRC;
   }
 }
 

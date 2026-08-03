@@ -18,15 +18,15 @@ vi.mock('../detection/barcodeDetector', () => ({
 vi.mock('./pdf/PdfViewer', () => {
   const { useEffect, useRef } = require('react');
   return {
-    PdfViewer: ({ onPagesRendered, children }: {
-      onPagesRendered?: (p: unknown[]) => void; children?: React.ReactNode;
+    PdfViewer: ({ onPagesRendered, children, workerSrc }: {
+      onPagesRendered?: (p: unknown[]) => void; children?: React.ReactNode; workerSrc?: string;
     }) => {
       const cbRef = useRef(onPagesRendered);
       cbRef.current = onPagesRendered;
       useEffect(() => {
         cbRef.current?.([{ numPage: 1, width: 612, height: 792, widthPt: 612, heightPt: 792 }]);
       }, []);
-      return <div data-testid="pdf-mock">{children}</div>;
+      return <div data-testid="pdf-mock" data-worker-src={workerSrc}>{children}</div>;
     },
   };
 });
@@ -222,6 +222,12 @@ describe('FirmaAutografa — flujo completo', () => {
 
     await screen.findByText(es.completed.title);
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
+  });
+
+  it('reenvía pdfWorkerUrl al PdfViewer como workerSrc (Task 27)', async () => {
+    render(<FirmaAutografa token="tok" baseUrl={BASE} pdfWorkerUrl="/mi-worker/pdf.worker.min.mjs" />);
+    await screen.findByText(es.start.title);
+    expect(screen.getByTestId('pdf-mock')).toHaveAttribute('data-worker-src', '/mi-worker/pdf.worker.min.mjs');
   });
 
   it('libera los detectores on-device cacheados al desmontar la raíz', async () => {

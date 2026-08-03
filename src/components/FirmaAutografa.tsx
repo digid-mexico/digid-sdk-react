@@ -29,6 +29,15 @@ export interface FirmaAutografaProps {
   tokenTransport?: TokenTransport;
   theme?: DigidTheme;
   termsUrl?: string;
+  /**
+   * URL del worker de pdfjs-dist (`pdf.worker.min.mjs`) para el visor de PDF.
+   * Necesaria en bundlers que no reescriben `new URL(..., import.meta.url)`
+   * al pre-empaquetar dependencias (p.ej. Vite/esbuild): sin ella el worker
+   * puede 404 en silencio y el visor se queda en "Página de 0". Alternativa
+   * sin esta prop: sirve `scan-assets/` (ya incluye el worker) — ver
+   * sección 10.2 de la guía de integración.
+   */
+  pdfWorkerUrl?: string;
   /** URLs configurables para los detectores on-device de auto-captura (MediaPipe/zxing). */
   detectionAssets?: DetectionAssets;
   /** URL configurable del worker de escaneo OpenCV (núcleo portado en Task 22; aún sin consumir desde los steps). */
@@ -40,7 +49,7 @@ export interface FirmaAutografaProps {
 
 export function FirmaAutografa({
   token, baseUrl = '', tokenTransport,
-  theme, termsUrl = 'https://www.digid.com.mx/terminos-condiciones',
+  theme, termsUrl = 'https://www.digid.com.mx/terminos-condiciones', pdfWorkerUrl,
   detectionAssets, scanAssets, onComplete, onExit, onError,
 }: FirmaAutografaProps) {
   const api = useMemo(
@@ -94,8 +103,11 @@ export function FirmaAutografa({
   }, [state.step, state.error, state.exitReason]); // eslint-disable-line react-hooks/exhaustive-deps -- onComplete/onExit/onError intencionalmente fuera: no deben reejecutar el efecto si el consumidor pasa una nueva referencia en cada render
 
   const flowContextValue = useMemo(
-    () => ({ api, state, dispatch, asignado, refreshAsignado, notify, setBusy, termsUrl, detectionAssets, scanAssets }),
-    [api, state, asignado, refreshAsignado, notify, termsUrl, detectionAssets, scanAssets],
+    () => ({
+      api, state, dispatch, asignado, refreshAsignado, notify, setBusy, termsUrl, pdfWorkerUrl,
+      detectionAssets, scanAssets,
+    }),
+    [api, state, asignado, refreshAsignado, notify, termsUrl, pdfWorkerUrl, detectionAssets, scanAssets],
   );
 
   return (

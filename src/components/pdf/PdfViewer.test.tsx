@@ -41,6 +41,25 @@ describe('PdfViewer', () => {
     render(<PdfViewer url="/doc.pdf" workerSrc="/custom-worker.js" />);
     await waitFor(() => expect(GlobalWorkerOptions.workerSrc).toBe('/custom-worker.js'));
   });
+
+  it('si la resolución vía import.meta.url falla y no hay prop, usa el fallback de scan-assets/', async () => {
+    const { GlobalWorkerOptions } = await import('pdfjs-dist');
+    GlobalWorkerOptions.workerSrc = ''; // fuerza a pasar por la rama de resolución automática
+    const OriginalURL = global.URL;
+    // @ts-expect-error stub deliberado: fuerza el catch de configureWorker
+    global.URL = class {
+      constructor() {
+        throw new Error('no resoluble en este entorno');
+      }
+    };
+    try {
+      render(<PdfViewer url="/doc.pdf" />);
+      await waitFor(() => expect(GlobalWorkerOptions.workerSrc).toBe('/digid-scan/pdf.worker.min.mjs'));
+    } finally {
+      global.URL = OriginalURL;
+      GlobalWorkerOptions.workerSrc = '';
+    }
+  });
 });
 
 describe('PdfViewer con toolbar', () => {

@@ -10,7 +10,7 @@ import {
 
 export function PlaceSignaturesStep() {
   const s = useStrings();
-  const { api, state, dispatch, notify, setBusy } = useFlow();
+  const { api, state, dispatch, notify, setBusy, pdfWorkerUrl } = useFlow();
   const data = state.startData!;
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [placed, setPlaced] = useState(0); // firmas confirmadas
@@ -97,6 +97,7 @@ export function PlaceSignaturesStep() {
       <PdfViewer
         url={api.documentPdfUrl()}
         onPagesRendered={setPages}
+        workerSrc={pdfWorkerUrl}
       >
         {overlays.map((o) => (
           <div
