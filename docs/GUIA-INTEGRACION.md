@@ -21,7 +21,7 @@ el mismo proceso certificado que ofrece Digid:
 | 3 | **Identificación (reverso)** | Mismo flujo de instrucción + marco guiado + recorte automático que el paso anterior. |
 | 4 | **Selfie** | La cámara frontal se abre de inmediato, sin pantalla de instrucción previa, con un óvalo guía: el SDK detecta el rostro del firmante centrado y a buen tamaño dentro del óvalo para capturar automáticamente (o con el botón de captura manual). **La selfie es obligatoria por cámara**: a diferencia de los pasos 2 y 3, no hay alternativa de subir un archivo — ver [sección 9](#9-permisos-del-navegador-y-compatibilidad). |
 | 5 | **Creación de la firma** | El firmante dibuja su firma autógrafa en un lienzo táctil (funciona con dedo, stylus o mouse). |
-| 6 | **Colocación de firmas** | El firmante confirma una por una las posiciones de su firma sobre el documento, viéndolas superpuestas en el PDF real. La previsualización muestra la posición y el tamaño exactos con los que quedará estampada en el documento final (37×24mm físicos). |
+| 6 | **Colocación de firmas** | El firmante confirma una por una las posiciones de su firma sobre el documento, viéndolas superpuestas en el PDF real. La previsualización muestra la posición y el tamaño exactos con los que quedará estampada en el documento final (35×22mm físicos). |
 | 7 | **Confirmación** | Pantalla de éxito. El documento queda firmado en Digid y tu aplicación recibe el callback `onComplete`. |
 
 > **Pasos condicionales.** Los pasos 2, 3 y 4 (INE frente, INE reverso, selfie) no

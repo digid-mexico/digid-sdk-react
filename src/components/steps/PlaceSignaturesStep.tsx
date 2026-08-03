@@ -104,9 +104,9 @@ export function PlaceSignaturesStep() {
             key={o.id}
             className="digid-sign-overlay"
             // Tamaño adaptativo: el backend estampa la imagen de firma a un
-            // tamaño FIJO de 37×24mm físicos sobre el PDF final (FPDI/FPDF,
+            // tamaño FIJO de 35×22mm físicos sobre el PDF final (FPDI/FPDF,
             // ver SignatureNotificationService). `computeOverlayRect` convierte
-            // esos 37×24mm a css px usando las dimensiones físicas reales de
+            // esos 35×22mm a css px usando las dimensiones físicas reales de
             // la página (PageInfo.widthPt/heightPt), así que este overlay
             // siempre coincide con lo que terminará impreso, sin importar el
             // tamaño de página, el zoom o el ancho del contenedor.

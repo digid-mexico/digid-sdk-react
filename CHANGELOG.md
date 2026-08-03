@@ -56,6 +56,8 @@ El proyecto sigue [SemVer](https://semver.org) con las reglas de
 
 ### Cambiado
 
+- Tamaño del recuadro de firma en la colocación calibrado a **35×22 mm**
+  (antes 37×24) para igualar visualmente el estampado del portal original.
 - **La selfie ahora es obligatoria por cámara.** El paso abre la cámara de
   inmediato, sin la pantalla de instrucción previa que sí conservan INE
   frente/reverso, y ya no ofrece subir un archivo como alternativa — la

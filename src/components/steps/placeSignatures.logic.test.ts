@@ -57,25 +57,25 @@ describe('computeOverlayPosition', () => {
 });
 
 describe('computeOverlaySize', () => {
-  it('carta (letter) renderizada a su ancho físico (scale 1): 37×24mm → ≈104.88×68.03 css px', () => {
+  it('carta (letter) renderizada a su ancho físico (scale 1): 35×22mm → ≈99.21×62.36 css px', () => {
     const page: PageInfo = { numPage: 1, width: 612, height: 792, widthPt: 612, heightPt: 792 };
     const size = computeOverlaySize(page);
-    expect(size.width).toBeCloseTo(104.9, 1);
-    expect(size.height).toBeCloseTo(68.0, 1);
+    expect(size.width).toBeCloseTo(99.2, 1);
+    expect(size.height).toBeCloseTo(62.4, 1);
   });
 
   it('a la mitad del render (mismo widthPt, mitad de width renderizado) el overlay también se reduce a la mitad', () => {
     const page: PageInfo = { numPage: 1, width: 306, height: 396, widthPt: 612, heightPt: 792 };
     const size = computeOverlaySize(page);
-    expect(size.width).toBeCloseTo(52.4, 1);
-    expect(size.height).toBeCloseTo(34.0, 1);
+    expect(size.width).toBeCloseTo(49.6, 1);
+    expect(size.height).toBeCloseTo(31.2, 1);
   });
 
-  it('A4 renderizada a su ancho físico (scale 1) da el mismo tamaño css: 37mm es 37mm sin importar el tamaño de página', () => {
+  it('A4 renderizada a su ancho físico (scale 1) da el mismo tamaño css: 35mm es 35mm sin importar el tamaño de página', () => {
     const page: PageInfo = { numPage: 1, width: 595.28, height: 841.89, widthPt: 595.28, heightPt: 841.89 };
     const size = computeOverlaySize(page);
-    expect(size.width).toBeCloseTo(104.9, 1);
-    expect(size.height).toBeCloseTo(68.0, 1);
+    expect(size.width).toBeCloseTo(99.2, 1);
+    expect(size.height).toBeCloseTo(62.4, 1);
   });
 
   it('usa el fallback fijo 100×50 si falta widthPt (compatibilidad con mocks/entornos viejos)', () => {
@@ -96,8 +96,8 @@ describe('computeOverlayRect', () => {
     const rect = computeOverlayRect(coord, rectPages, 612)!;
     expect(rect.x).toBeCloseTo(0);
     expect(rect.y).toBeCloseTo(0);
-    expect(rect.width).toBeCloseTo(104.9, 1);
-    expect(rect.height).toBeCloseTo(68.0, 1);
+    expect(rect.width).toBeCloseTo(99.2, 1);
+    expect(rect.height).toBeCloseTo(62.4, 1);
   });
 
   it('devuelve null si la página no existe', () => {

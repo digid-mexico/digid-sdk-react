@@ -712,16 +712,16 @@ describe('PlaceSignaturesStep', () => {
     expect(container.querySelectorAll('.digid-sign-overlay').length).toBeGreaterThan(0);
   });
 
-  it('el tamaño del overlay es adaptativo: 37x24mm convertidos a css px según widthPt de la página', async () => {
+  it('el tamaño del overlay es adaptativo: 35x22mm convertidos a css px según widthPt de la página', async () => {
     // Página carta (widthPt 612) renderizada a su ancho físico (612 css px,
-    // ver mock de PdfViewer): 37mm ≈ 104.88px, 24mm ≈ 68.03px.
+    // ver mock de PdfViewer): 35mm ≈ 99.21px, 22mm ≈ 62.36px.
     const { ctx } = ctxWithFirmas();
     const { container } = renderStep(<PlaceSignaturesStep />, ctx);
     await screen.findByRole('button', { name: /Firma 1\/2/ });
     const overlay = container.querySelector<HTMLDivElement>('.digid-sign-overlay');
     expect(overlay).not.toBeNull();
-    expect(overlay!.style.width).toMatch(/^104\.8/);
-    expect(overlay!.style.height).toMatch(/^68\.0/);
+    expect(overlay!.style.width).toMatch(/^99\.2/);
+    expect(overlay!.style.height).toMatch(/^62\.3/);
   });
 
   it('NO habilita el toolbar de zoom (el zoom desalinearía el cálculo de overlays)', async () => {

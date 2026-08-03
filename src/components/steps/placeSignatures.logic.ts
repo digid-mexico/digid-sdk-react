@@ -21,9 +21,9 @@ export interface OverlaySize { width: number; height: number }
  * firma sobre el PDF final (ver `SignatureNotificationService::stampSignatures`,
  * `$pdf->Image($pathImg, $x, $y, 37, 24)` vía FPDI/FPDF). No depende del
  * tamaño de página ni del zoom: el documento final siempre lleva un rectángulo
- * de 37×24mm físicos, sin importar carta, A4 u otro tamaño.
+ * de 35×22mm físicos (calibrado visualmente contra el portal), sin importar carta, A4 u otro tamaño.
  */
-export const SIGN_STAMP_MM = { width: 37, height: 24 };
+export const SIGN_STAMP_MM = { width: 35, height: 22 };
 
 /** 1 punto PDF = 25.4/72 mm (72pt = 1 pulgada = 25.4mm). */
 export const MM_PER_PT = 25.4 / 72;
@@ -55,7 +55,7 @@ export function computeOverlayPosition(
 
 /**
  * Tamaño en css px del overlay de previsualización de firma, calculado para
- * que coincida EXACTAMENTE con el rectángulo de 37×24mm que el backend
+ * que coincida con el rectángulo que el backend
  * estampa en el PDF final (ver `SIGN_STAMP_MM`).
  *
  * `page.widthPt`/`page.heightPt` son las dimensiones físicas de la página
