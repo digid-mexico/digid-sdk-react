@@ -61,9 +61,19 @@ export class ApiClient {
       : `?token=${encodeURIComponent(this.token)}`;
   }
 
-  /** URL absoluta de un recurso estático del backend (PDF, firma png, QR). */
+  /** URL absoluta de un recurso estático del backend (QR, imágenes del backend). */
   fileUrl(path: string): string {
     return `${this.baseUrl}${path}`;
+  }
+
+  /** PDF del documento, autorizado por token (reemplaza el antiguo /storage). */
+  documentPdfUrl(): string {
+    return `${this.baseUrl}/api/archivofirma/document_pdf?token=${encodeURIComponent(this.token)}`;
+  }
+
+  /** PNG de la firma del firmante, autorizado por token. */
+  signatureImageUrl(): string {
+    return `${this.baseUrl}/api/archivofirma/signature_image?token=${encodeURIComponent(this.token)}`;
   }
 
   async startAutografa(): Promise<StartAutografaData> {

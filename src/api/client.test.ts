@@ -237,6 +237,21 @@ describe('ApiClient.forgotPwdRl', () => {
   });
 });
 
+describe('ApiClient.documentPdfUrl / signatureImageUrl', () => {
+  it('arma la URL del PDF con el token en query', () => {
+    expect(client.documentPdfUrl()).toBe(`${BASE}/api/archivofirma/document_pdf?token=tok123`);
+  });
+
+  it('arma la URL de la firma con el token en query', () => {
+    expect(client.signatureImageUrl()).toBe(`${BASE}/api/archivofirma/signature_image?token=tok123`);
+  });
+
+  it('escapa caracteres especiales del token', () => {
+    const c = new ApiClient({ baseUrl: BASE, token: 'a b&c' });
+    expect(c.documentPdfUrl()).toBe(`${BASE}/api/archivofirma/document_pdf?token=a%20b%26c`);
+  });
+});
+
 describe('ApiClient.finishAutografa', () => {
   it('postea token, browser y gps', async () => {
     server.use(

@@ -44,7 +44,6 @@ export default defineConfig({
     // proxy al backend local de Digid para evitar CORS en desarrollo
     proxy: {
       '/api': 'http://127.0.0.1:8000',
-      '/storage': 'http://127.0.0.1:8000',
       '/docments': 'http://127.0.0.1:8000',
     },
   },

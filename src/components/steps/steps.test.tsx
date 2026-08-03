@@ -81,6 +81,8 @@ function makeCtx(overrides: Partial<FlowContextValue> = {}): FlowContextValue {
   return {
     api: {
       fileUrl: (p: string) => p,
+      documentPdfUrl: () => 'https://digid.test/api/archivofirma/document_pdf?token=tok',
+      signatureImageUrl: () => 'https://digid.test/api/archivofirma/signature_image?token=tok',
       saveFile: vi.fn().mockResolvedValue({ Success: true, Step: 0 }),
     } as never,
     state: { step: 'start', startData, order: computeStepOrder(startData.preferences), exitReason: null, error: null },
@@ -156,6 +158,8 @@ describe('StartStep', () => {
         },
         api: {
           fileUrl: (p: string) => p,
+          documentPdfUrl: () => 'https://digid.test/api/archivofirma/document_pdf?token=tok',
+          signatureImageUrl: () => 'https://digid.test/api/archivofirma/signature_image?token=tok',
           validRepre: vi.fn().mockResolvedValue({ Success: true }),
           finishAutografa: vi.fn().mockResolvedValue({ Success: true }),
           forgotPwdRl: vi.fn().mockResolvedValue({ Success: true }),
@@ -202,6 +206,8 @@ describe('StartStep', () => {
       const ctx = ctxWithRepre({
         api: {
           fileUrl: (p: string) => p,
+          documentPdfUrl: () => 'https://digid.test/api/archivofirma/document_pdf?token=tok',
+          signatureImageUrl: () => 'https://digid.test/api/archivofirma/signature_image?token=tok',
           validRepre: vi.fn().mockRejectedValue(new DigidError('INVALID_TOKEN', 'rechazado')),
           finishAutografa: vi.fn().mockResolvedValue({ Success: true }),
           forgotPwdRl: vi.fn().mockResolvedValue({ Success: true }),
@@ -221,6 +227,8 @@ describe('StartStep', () => {
       const ctx = ctxWithRepre({
         api: {
           fileUrl: (p: string) => p,
+          documentPdfUrl: () => 'https://digid.test/api/archivofirma/document_pdf?token=tok',
+          signatureImageUrl: () => 'https://digid.test/api/archivofirma/signature_image?token=tok',
           validRepre: vi.fn().mockRejectedValue(new DigidError('NETWORK', 'sin conexión')),
           finishAutografa: vi.fn().mockResolvedValue({ Success: true }),
           forgotPwdRl: vi.fn().mockResolvedValue({ Success: true }),
@@ -477,6 +485,8 @@ describe('IdCaptureStep', () => {
     const ctx = makeCtx({
       api: {
         fileUrl: (p: string) => p,
+        documentPdfUrl: () => 'https://digid.test/api/archivofirma/document_pdf?token=tok',
+        signatureImageUrl: () => 'https://digid.test/api/archivofirma/signature_image?token=tok',
         saveFile: vi.fn()
           .mockRejectedValueOnce(new Error('network'))
           .mockResolvedValueOnce({ Success: true, Step: 0 }),
@@ -688,6 +698,8 @@ describe('SelfieStep', () => {
     const ctx = makeCtx({
       api: {
         fileUrl: (p: string) => p,
+        documentPdfUrl: () => 'https://digid.test/api/archivofirma/document_pdf?token=tok',
+        signatureImageUrl: () => 'https://digid.test/api/archivofirma/signature_image?token=tok',
         saveFile: vi.fn()
           .mockRejectedValueOnce(new Error('network'))
           .mockResolvedValueOnce({ Success: true, Step: 0 }),

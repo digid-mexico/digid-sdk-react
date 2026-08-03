@@ -29,7 +29,7 @@ export function StartStep() {
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
-  const pdfUrl = api.fileUrl(`/storage/files/${data.client.id}/${data.document.archivo}`);
+  const pdfUrl = api.documentPdfUrl();
   const clientName = data.subAccount?.correo ?? data.client.razonsocial;
 
   // GPS solo si hay representante legal y el cliente lo exige (mismo patrón que

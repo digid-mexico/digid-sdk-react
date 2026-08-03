@@ -22,9 +22,7 @@ export function PlaceSignaturesStep() {
     () => parseCoordinates(data.document.firmas, data.assignament.idfirmante),
     [data],
   );
-  const signImgUrl = api.fileUrl(
-    `/storage/files/${data.client.id}/signatories/${data.assignament.idfirmante}/firma_${data.document.id}.png`,
-  );
+  const signImgUrl = api.signatureImageUrl();
 
   // GPS solo si el cliente lo exige (preferencias del backend); gps null es aceptado
   useEffect(() => {
@@ -97,7 +95,7 @@ export function PlaceSignaturesStep() {
       </ul>
 
       <PdfViewer
-        url={api.fileUrl(`/storage/files/${data.client.id}/${data.document.archivo}`)}
+        url={api.documentPdfUrl()}
         onPagesRendered={setPages}
       >
         {overlays.map((o) => (
