@@ -382,17 +382,17 @@ export function Firmador({ token }: { token: string }) {
 }
 ```
 
-### 6.3 Desarrollo local: evita CORS con un proxy
+### 6.3 Proxy local (opcional)
 
-En desarrollo, tu app corre en un origen distinto al backend de Digid y el navegador
-aplica CORS a cada petición. La política actual de Digid cubre las rutas de la API,
-pero **el PDF del documento se sirve desde `/storage/files/...`, que no envía
-cabeceras CORS** — verás que las llamadas a `/api` funcionan y aun así el visor de
-PDF falla con un error de CORS en la consola.
+Desde la versión 0.9.0 el SDK ya **no** llama a `/storage`: el PDF y la imagen de
+firma se sirven vía `/api/archivofirma/document_pdf` y `/api/archivofirma/signature_image`,
+autorizados por token y cubiertos por la misma política CORS que el resto de `/api`.
+El proxy de esta sección **ya no es necesario ni en desarrollo ni en producción** —
+llamar a Digid directo con `baseUrl` funciona out of the box si tu dominio está en el
+allowlist de CORS (sección 3).
 
-La solución recomendada en desarrollo es dejar que tu dev server haga de **proxy**
-hacia Digid y usar `baseUrl=""` (mismo origen): el navegador nunca ve una petición
-cross-origin y CORS deja de existir como problema.
+Sigue siendo una opción válida si prefieres que tu app y Digid compartan el mismo
+origen (evita CORS por completo, útil si tu CSP es muy estricta):
 
 **Vite** (`vite.config.ts`):
 
@@ -401,7 +401,6 @@ export default defineConfig({
   server: {
     proxy: {
       '/api':      { target: 'https://pruebas.digidmexico.com.mx', changeOrigin: true },
-      '/storage':  { target: 'https://pruebas.digidmexico.com.mx', changeOrigin: true },
       '/docments': { target: 'https://pruebas.digidmexico.com.mx', changeOrigin: true },
     },
   },
@@ -416,23 +415,18 @@ module.exports = {
     const digid = 'https://pruebas.digidmexico.com.mx';
     return [
       { source: '/api/:path*',      destination: `${digid}/api/:path*` },
-      { source: '/storage/:path*',  destination: `${digid}/storage/:path*` },
       { source: '/docments/:path*', destination: `${digid}/docments/:path*` },
     ];
   },
 };
 ```
 
-En ambos casos monta el SDK con `baseUrl=""`:
+En ambos casos monta el SDK con `baseUrl=""`. `/storage` ya no lo usa el SDK, así
+que no hace falta incluirlo en ninguna de las dos configuraciones.
 
 ```tsx
 <FirmaAutografa token={token} baseUrl="" ... />
 ```
-
-En **producción**, si tu app y Digid están en dominios distintos, puedes conservar
-el mismo enfoque (proxy inverso en tu infraestructura) o llamar a Digid directo con
-`baseUrl` — para lo segundo, contacta a Digid para confirmar que tu dominio y las
-rutas de `/storage` estén habilitadas en su política CORS.
 
 ---
 
@@ -632,14 +626,14 @@ sección 1.2) sin romper el resto del flujo — igual que el escáner de INE si
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
-| `onError` inmediato con código `NETWORK` y errores CORS en consola | Tu dominio no está en la lista de orígenes permitidos de Digid | Solicita a Digid el alta de tu dominio exacto (esquema + subdominio). En desarrollo, usa el proxy del dev server con `baseUrl=""` (ver [sección 6.3](#63-desarrollo-local-evita-cors-con-un-proxy)). |
-| La API responde pero el PDF no carga y la consola muestra un error CORS sobre `/storage/files/...` | La política CORS de Digid cubre `/api` pero no los archivos estáticos de `/storage` | Usa el proxy de desarrollo de la [sección 6.3](#63-desarrollo-local-evita-cors-con-un-proxy) con `baseUrl=""`; para llamar directo en producción, pide a Digid habilitar CORS también en `/storage`. |
+| `onError` inmediato con código `NETWORK` y errores CORS en consola | Tu dominio no está en la lista de orígenes permitidos de Digid | Solicita a Digid el alta de tu dominio exacto (esquema + subdominio). Alternativa: el proxy opcional de la [sección 6.3](#63-proxy-local-opcional) con `baseUrl=""`. |
+| El PDF no carga (token válido) | El backend de Digid no incluye aún los endpoints `document_pdf`/`signature_image` (añadidos el 2026-07-29) | Confirma con Digid la versión del backend, o usa el proxy opcional de la [sección 6.3](#63-proxy-local-opcional) mientras se actualiza. |
 | `onError` con `INVALID_TOKEN` | Token mal copiado, vencido, o proceso ya cerrado | Verifica que pasas el token completo y que el documento sigue vigente. |
 | La cámara no abre | Página servida sin HTTPS, o permiso denegado | Sirve por HTTPS; el firmante siempre puede subir archivo como alternativa. |
 | En INE no hay detección en vivo ni captura automática, y en consola aparece "Worker de escaneo no disponible" | `scan-assets/` no se está sirviendo en la URL que espera el SDK | Copia la carpeta (`cp -R node_modules/@digid-sdk/firma-autografa-react/scan-assets public/digid-scan`) y comprueba que `/digid-scan/scan-worker.js` responde 200. Si la sirves en otra ruta, pásala en `scanAssets.workerUrl` (ver [sección 1.3](#13-escaneo-de-documentos-ine)). |
 | Funcionaba en local y tras desplegar dejó de funcionar el escáner | `npm ci` borró `node_modules` y con él la copia manual de `scan-assets/` | Engancha la copia al `postinstall` en vez de hacerla a mano. |
 | La selfie sí captura sola pero la INE no | Son dos mecanismos distintos: la selfie usa MediaPipe (CDN) y la INE el worker de OpenCV (local) | El síntoma apunta a `scan-assets/`, no a `detectionAssets`. |
-| El PDF no se muestra (mensaje de error del visor) | Worker de pdf.js no resuelto (build CJS) o PDF inaccesible | Ver sección 10.2; revisa en la pestaña Red si `/storage/files/...` responde 200. |
+| El PDF no se muestra (mensaje de error del visor) | Worker de pdf.js no resuelto (build CJS) o PDF inaccesible | Ver sección 10.2; revisa en la pestaña Red si `/api/archivofirma/document_pdf` responde 200. |
 | El SDK muestra directamente la pantalla de éxito | El firmante ya había completado el proceso | Comportamiento esperado (estado del proceso en Digid). |
 | Los colores de mi `theme` no se aplican | Tu cuenta tiene estilos de marca configurados en Digid | Los estilos de la plataforma tienen prioridad; ajústalos en Digid o pide su retiro. |
 

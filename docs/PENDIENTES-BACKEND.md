@@ -39,13 +39,15 @@ No forman parte de la documentación para clientes integradores (esa es
 
   (`public/js/signatory/autografa/start.js` ya está migrado al header.)
 
+- **PDF y firma vía endpoints autorizados por token.** Task 26 (v0.9.0) cambió el
+  SDK de `/storage/files/...` (sin CORS) a `GET /api/archivofirma/document_pdf` y
+  `GET /api/archivofirma/signature_image`, ambos bajo `/api` y solo con `?token=`.
+  Endpoints en el backend desde 2026-07-29.
+
 ## Pendiente de verificar contra un entorno real
 
 - Confirmar que `/docments/verarchivo/{id}` funciona para firmantes externos en un
   origen cross-origin (dominio del integrador distinto al del backend Digid).
-
-- Confirmar con un token real cuál id se usa para las rutas de storage del cliente
-  (`client.id` vs `document.client`).
 
 - Confirmar que el CORS de producción admite `X-Digid-Token` en
   `Access-Control-Allow-Headers` antes de que algún integrador use

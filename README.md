@@ -129,10 +129,13 @@ Si tu proyecto consume el build CommonJS, pasa la URL del worker manualmente al 
 - CORS: agregar el dominio del integrador al allowlist de `config/cors.php`
   (no usar `*` junto con `supports_credentials: true`).
 - Endpoints consumidos: `GET /api/archivofirma/start_autografa`, `GET /api/asignado/autografa`,
+  `GET /api/archivofirma/document_pdf`, `GET /api/archivofirma/signature_image`,
   `POST /api/asignado/autografa/save_file`, `POST /api/archivofirma/finish_autografa`,
   `POST /api/archivofirma/valid_repre` y `POST /api/firmante/forgot_pwd_rl` (estos dos
-  últimos solo aplican a firmantes Representante Legal), y los recursos estáticos de
-  `/storage/files`.
+  últimos solo aplican a firmantes Representante Legal).
+- Requiere un backend con `document_pdf`/`signature_image` (añadidos 2026-07-29); con
+  uno más viejo el PDF no cargará cross-origin — el proxy de la sección 6.3 de la
+  guía es el workaround mientras se actualiza.
 
 ## Seguridad
 
@@ -187,7 +190,7 @@ política de deprecación— están en [docs/VERSIONADO.md](docs/VERSIONADO.md).
     npm run build       # tsup → dist/
     npm run dev         # playground en http://localhost:5199/?token=<token>
 
-El playground hace proxy de /api, /storage y /docments a http://127.0.0.1:8000
+El playground hace proxy de /api y /docments a http://127.0.0.1:8000
 (backend Laravel local).
 
 Para probar la cámara desde un celular (getUserMedia exige HTTPS):

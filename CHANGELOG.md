@@ -12,6 +12,26 @@ El proyecto sigue [SemVer](https://semver.org) con las reglas de
 
 ## [Sin publicar]
 
+## [1.2.0] — 2026-08-03
+
+### Cambiado
+
+- **El PDF del documento y la imagen de firma ya no se piden a `/storage/files/...`.**
+  Ahora usan `GET /api/archivofirma/document_pdf` y
+  `GET /api/archivofirma/signature_image`, autorizados por token y bajo la misma
+  política CORS que el resto de `/api` — el proxy de la [sección 6.3 de la
+  guía](docs/GUIA-INTEGRACION.md#63-proxy-local-opcional) deja de ser necesario
+  para que el visor de PDF cargue cross-origin.
+
+  **Requiere un backend de Digid con estos dos endpoints** (disponibles desde
+  el 2026-07-29). Contra uno más viejo, el visor de PDF no cargará
+  cross-origin; el proxy de la sección 6.3 sigue funcionando como workaround
+  mientras se actualiza el backend.
+
+### Añadido
+
+- `ApiClient.documentPdfUrl()` y `ApiClient.signatureImageUrl()`.
+
 ## [1.1.0] — 2026-07-31
 
 ### Corregido
