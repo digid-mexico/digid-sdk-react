@@ -382,6 +382,58 @@ export function Firmador({ token }: { token: string }) {
 }
 ```
 
+### 6.3 Desarrollo local: evita CORS con un proxy
+
+En desarrollo, tu app corre en un origen distinto al backend de Digid y el navegador
+aplica CORS a cada petición. La política actual de Digid cubre las rutas de la API,
+pero **el PDF del documento se sirve desde `/storage/files/...`, que no envía
+cabeceras CORS** — verás que las llamadas a `/api` funcionan y aun así el visor de
+PDF falla con un error de CORS en la consola.
+
+La solución recomendada en desarrollo es dejar que tu dev server haga de **proxy**
+hacia Digid y usar `baseUrl=""` (mismo origen): el navegador nunca ve una petición
+cross-origin y CORS deja de existir como problema.
+
+**Vite** (`vite.config.ts`):
+
+```ts
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api':      { target: 'https://pruebas.digidmexico.com.mx', changeOrigin: true },
+      '/storage':  { target: 'https://pruebas.digidmexico.com.mx', changeOrigin: true },
+      '/docments': { target: 'https://pruebas.digidmexico.com.mx', changeOrigin: true },
+    },
+  },
+});
+```
+
+**Next.js** (`next.config.js`):
+
+```js
+module.exports = {
+  async rewrites() {
+    const digid = 'https://pruebas.digidmexico.com.mx';
+    return [
+      { source: '/api/:path*',      destination: `${digid}/api/:path*` },
+      { source: '/storage/:path*',  destination: `${digid}/storage/:path*` },
+      { source: '/docments/:path*', destination: `${digid}/docments/:path*` },
+    ];
+  },
+};
+```
+
+En ambos casos monta el SDK con `baseUrl=""`:
+
+```tsx
+<FirmaAutografa token={token} baseUrl="" ... />
+```
+
+En **producción**, si tu app y Digid están en dominios distintos, puedes conservar
+el mismo enfoque (proxy inverso en tu infraestructura) o llamar a Digid directo con
+`baseUrl` — para lo segundo, contacta a Digid para confirmar que tu dominio y las
+rutas de `/storage` estén habilitadas en su política CORS.
+
 ---
 
 ## 7. Referencia de API
@@ -580,7 +632,8 @@ sección 1.2) sin romper el resto del flujo — igual que el escáner de INE si
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
-| `onError` inmediato con código `NETWORK` y errores CORS en consola | Tu dominio no está en la lista de orígenes permitidos de Digid | Solicita a Digid el alta de tu dominio exacto (esquema + subdominio). |
+| `onError` inmediato con código `NETWORK` y errores CORS en consola | Tu dominio no está en la lista de orígenes permitidos de Digid | Solicita a Digid el alta de tu dominio exacto (esquema + subdominio). En desarrollo, usa el proxy del dev server con `baseUrl=""` (ver [sección 6.3](#63-desarrollo-local-evita-cors-con-un-proxy)). |
+| La API responde pero el PDF no carga y la consola muestra un error CORS sobre `/storage/files/...` | La política CORS de Digid cubre `/api` pero no los archivos estáticos de `/storage` | Usa el proxy de desarrollo de la [sección 6.3](#63-desarrollo-local-evita-cors-con-un-proxy) con `baseUrl=""`; para llamar directo en producción, pide a Digid habilitar CORS también en `/storage`. |
 | `onError` con `INVALID_TOKEN` | Token mal copiado, vencido, o proceso ya cerrado | Verifica que pasas el token completo y que el documento sigue vigente. |
 | La cámara no abre | Página servida sin HTTPS, o permiso denegado | Sirve por HTTPS; el firmante siempre puede subir archivo como alternativa. |
 | En INE no hay detección en vivo ni captura automática, y en consola aparece "Worker de escaneo no disponible" | `scan-assets/` no se está sirviendo en la URL que espera el SDK | Copia la carpeta (`cp -R node_modules/@digid-sdk/firma-autografa-react/scan-assets public/digid-scan`) y comprueba que `/digid-scan/scan-worker.js` responde 200. Si la sirves en otra ruta, pásala en `scanAssets.workerUrl` (ver [sección 1.3](#13-escaneo-de-documentos-ine)). |
