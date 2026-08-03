@@ -106,7 +106,7 @@ sin romper el flujo.
 | tokenTransport | 'both' \| 'header' \| 'query' | Cómo viaja el token (default: `'both'`). Cambia a `'header'` en cuanto el backend lea `X-Digid-Token` — ver sección 5.1 de la guía |
 | theme | DigidTheme | Colores opcionales; los estilos del cliente configurados en Digid tienen prioridad |
 | termsUrl | string | URL de términos y condiciones |
-| pdfWorkerUrl | string | URL del worker de `pdfjs-dist` para el visor de PDF (default: resolución automática, con fallback a `/digid-scan/pdf.worker.min.mjs`) — ver más abajo |
+| pdfWorkerUrl | string | URL del worker de `pdfjs-dist` para el visor de PDF (default: resolución automática, con reintento a `/digid-scan/pdf.worker.min.mjs` si falla la carga) — ver más abajo |
 | detectionAssets | DetectionAssets | URLs propias para autoalojar los modelos de detección de la captura automática (default: CDNs públicos); solo usados por la selfie — ver nota abajo sobre `zxingWasmUrl` |
 | scanAssets | ScanAssets | URL propia del worker de escaneo OpenCV (default: `/digid-scan/scan-worker.js`), usado por los pasos de INE frente/reverso para el recorte automático del documento; requiere servir `scan-assets/` en tu propio origen (ver sección 1.3 de la guía) |
 | onComplete | () => void | Proceso terminado con éxito |
@@ -124,11 +124,12 @@ sin romper el flujo.
 
 **No asumas que se resuelve solo.** El SDK intenta resolver el worker de pdf.js vía
 `import.meta.url`, pero Vite (y otros bundlers basados en esbuild) no reescriben esa URL
-al pre-empaquetar dependencias: el worker puede devolver 404 en silencio y el visor se
-queda en "Página de 0". Si ya sirves `scan-assets/` (paso 2 de arriba) no necesitas nada
-más — esa carpeta incluye `pdf.worker.min.mjs` y el visor cae ahí si la resolución
-automática falla. Si no, pasa la URL con la prop `pdfWorkerUrl` de `<FirmaAutografa>` (o
-`workerSrc` si usas `PdfViewer` por separado). Detalle completo en la
+al pre-empaquetar dependencias: la URL se construye sin error y aun así apunta a un 404
+en runtime. Si eso pasa, el visor lo detecta (falla la carga del documento) y **reintenta
+una vez sirviéndolo desde `/digid-scan/pdf.worker.min.mjs`** — si ya sirves `scan-assets/`
+(paso 2 de arriba), no necesitas nada más. Si no la sirves ahí, pasa la URL con la prop
+`pdfWorkerUrl` de `<FirmaAutografa>` (o `workerSrc` si usas `PdfViewer` por separado).
+Detalle completo en la
 [sección 10.2 de la guía](docs/GUIA-INTEGRACION.md#102-worker-del-visor-pdf-todos-los-proyectos).
 
 ## Requisitos del backend

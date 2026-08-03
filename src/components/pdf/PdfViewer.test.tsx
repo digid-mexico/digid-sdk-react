@@ -60,6 +60,42 @@ describe('PdfViewer', () => {
       GlobalWorkerOptions.workerSrc = '';
     }
   });
+
+  it('si la URL auto-resuelta 404ea en runtime (getDocument rechaza), reintenta una vez con el fallback y carga', async () => {
+    const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist');
+    GlobalWorkerOptions.workerSrc = ''; // fuerza resolución 'auto' (no 'preexisting')
+    const page = {
+      getViewport: ({ scale }: { scale: number }) => ({ width: 612 * scale, height: 792 * scale }),
+      render: () => ({ promise: Promise.resolve() }),
+    };
+    const callsBefore = vi.mocked(getDocument).mock.calls.length;
+    vi.mocked(getDocument)
+      .mockReturnValueOnce({ promise: Promise.reject(new Error('worker 404')) } as never)
+      .mockReturnValueOnce({
+        promise: Promise.resolve({ numPages: 1, getPage: () => Promise.resolve(page) }),
+      } as never);
+
+    render(<PdfViewer url="/doc.pdf" />);
+
+    await waitFor(() => expect(GlobalWorkerOptions.workerSrc).toBe('/digid-scan/pdf.worker.min.mjs'));
+    await waitFor(() =>
+      expect(screen.getByTestId('digid-pdf-pages').querySelectorAll('canvas')).toHaveLength(1),
+    );
+    expect(vi.mocked(getDocument).mock.calls.length - callsBefore).toBe(2);
+  });
+
+  it('con workerSrc explícito (prop), si getDocument falla NO reintenta con el fallback', async () => {
+    const { getDocument } = await import('pdfjs-dist');
+    const callsBefore = vi.mocked(getDocument).mock.calls.length;
+    vi.mocked(getDocument).mockReturnValueOnce({
+      promise: Promise.reject(new Error('boom')),
+    } as never);
+
+    render(<PdfViewer url="/doc.pdf" workerSrc="/custom-worker.js" />);
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(vi.mocked(getDocument).mock.calls.length - callsBefore).toBe(1);
+  });
 });
 
 describe('PdfViewer con toolbar', () => {

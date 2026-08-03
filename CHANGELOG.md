@@ -24,8 +24,9 @@ El proyecto sigue [SemVer](https://semver.org) con las reglas de
 - **`scan-assets/` ahora incluye `pdf.worker.min.mjs`.** Pineado a la
   versión de `pdfjs-dist` del `package.json` del SDK. Los integradores que ya
   copian esa carpeta para el escáner de INE no necesitan ningún paso extra:
-  el visor de PDF cae ahí automáticamente si la resolución vía
-  `import.meta.url` falla — ver [sección 10.2 de la
+  al fallar la carga del PDF con la resolución automática, el visor
+  **reintenta una vez** sirviendo el worker desde
+  `/digid-scan/pdf.worker.min.mjs` — ver [sección 10.2 de la
   guía](docs/GUIA-INTEGRACION.md#102-worker-del-visor-pdf-todos-los-proyectos).
 
 ### Corregido
@@ -40,11 +41,18 @@ El proyecto sigue [SemVer](https://semver.org) con las reglas de
 - **La afirmación de que "el visor resuelve el worker automáticamente en
   bundlers ESM" era falsa para consumidores reales instalando desde npm.**
   Vite pre-empaqueta las dependencias con esbuild, que no reescribe
-  `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)`: el
-  worker devolvía 404 en silencio y el visor se quedaba en "Página de 0" sin
-  ningún mensaje de error. La guía de integración (§10.1/10.2) y el README ya
-  no afirman resolución automática sin condiciones — documentan las dos
-  formas de configurarlo explícitamente.
+  `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)` —
+  y esa construcción **no lanza ningún error**: produce una URL que
+  simplemente 404ea en runtime, así que el fallback anterior (que solo
+  reaccionaba a una excepción) nunca se activaba. El worker devolvía 404 en
+  silencio y el visor se quedaba en "Página de 0" sin ningún mensaje de
+  error. Ahora, si la carga del documento falla con la resolución
+  automática, el visor **reintenta una vez** con
+  `/digid-scan/pdf.worker.min.mjs` antes de rendirse (sin reintento si se
+  pasó `workerSrc`/`pdfWorkerUrl` explícito: ese error se muestra directo).
+  La guía de integración (§10.1/10.2) y el README ya no afirman resolución
+  automática sin condiciones — documentan el reintento y las dos formas de
+  configurarlo explícitamente.
 
 ### Cambiado
 

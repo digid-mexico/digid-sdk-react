@@ -51,33 +51,39 @@ interface Props {
 // carpeta en /digid-scan/ para el escáner de INE.
 const FALLBACK_WORKER_SRC = '/digid-scan/pdf.worker.min.mjs';
 
+/** Cómo se resolvió GlobalWorkerOptions.workerSrc; ver configureWorker. */
+type WorkerResolution = 'prop' | 'preexisting' | 'auto' | 'fallback';
+
 /**
  * Configura pdfjs.GlobalWorkerOptions.workerSrc, en orden de prioridad:
  * 1. La prop `workerSrc` explícita.
  * 2. Un valor ya configurado por el consumidor (p.ej. de forma global).
- * 3. Resolución automática vía `import.meta.url` (solo funciona en ESM, y
- *    algunos bundlers ESM tampoco la reescriben al pre-empaquetar — p.ej.
- *    Vite/esbuild en dev, ver sección 10.1 de la guía de integración).
- * 4. Fallback final: FALLBACK_WORKER_SRC.
+ * 3. Resolución automática vía `import.meta.url` (solo funciona en ESM). Esta
+ *    URL puede CONSTRUIRSE bien y aun así apuntar a un 404 en runtime —
+ *    Vite/esbuild no la reescribe al pre-empaquetar — así que el llamador
+ *    reintenta con el fallback si `getDocument` falla (ver efecto A).
+ * 4. Fallback final si la construcción de la URL en sí falla (CJS): FALLBACK_WORKER_SRC.
  */
-function configureWorker(pdfjs: typeof import('pdfjs-dist'), workerSrc?: string): void {
+function configureWorker(pdfjs: typeof import('pdfjs-dist'), workerSrc?: string): WorkerResolution {
   if (workerSrc) {
     pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
-    return;
+    return 'prop';
   }
   if (pdfjs.GlobalWorkerOptions.workerSrc) {
-    return;
+    return 'preexisting';
   }
   try {
     pdfjs.GlobalWorkerOptions.workerSrc = new URL(
       'pdfjs-dist/build/pdf.worker.min.mjs',
       import.meta.url,
     ).toString();
+    return 'auto';
   } catch {
     // esbuild reemplaza `import.meta` por `{}` en el build .cjs, así que esto
     // siempre falla para consumidores CJS. Sin prop ni configuración previa,
     // usa el worker que scan-assets/ ya publica en el propio origen.
     pdfjs.GlobalWorkerOptions.workerSrc = FALLBACK_WORKER_SRC;
+    return 'fallback';
   }
 }
 
@@ -176,8 +182,18 @@ export function PdfViewer({
       try {
         // Dynamic import: pdfjs (~350KB) solo se descarga cuando se muestra un PDF.
         const pdfjs = await import('pdfjs-dist');
-        configureWorker(pdfjs, workerSrc);
-        const pdf = await pdfjs.getDocument({ url }).promise;
+        const resolution = configureWorker(pdfjs, workerSrc);
+        let pdf: PDFDocumentProxy;
+        try {
+          pdf = await pdfjs.getDocument({ url }).promise;
+        } catch (err) {
+          // La URL auto-resuelta puede construirse bien y aun así 404 en
+          // runtime (Vite/esbuild no la reescribe al pre-empaquetar): un solo
+          // reintento con el fallback de scan-assets/ antes de rendirse.
+          if (resolution !== 'auto' || cancelled) throw err;
+          pdfjs.GlobalWorkerOptions.workerSrc = FALLBACK_WORKER_SRC;
+          pdf = await pdfjs.getDocument({ url }).promise;
+        }
         if (cancelled) {
           pdf.destroy?.();
           return;
