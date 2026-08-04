@@ -575,7 +575,7 @@ children.push(
 // 12. CHECKLIST
 children.push(
   h1('12. Checklist de salida a producción'),
-  check('Dominio(s) de producción dados de alta en el CORS de Digid.'),
+  check('Backend de Digid del ambiente destino con los endpoints `document_pdf`/`signature_image` (hoy no se requiere alta de dominio en CORS).'),
   check('Página de firma servida por **HTTPS**.'),
   check('`baseUrl` apuntando al ambiente correcto de Digid.'),
   check('Manejo implementado de los tres callbacks (`onComplete`, `onExit`, `onError`) con navegación propia.'),

@@ -680,7 +680,7 @@ sección 1.2) sin romper el resto del flujo — igual que el escáner de INE si
 
 ## 12. Checklist de salida a producción
 
-- [ ] Dominio(s) de producción dados de alta en el CORS de Digid.
+- [ ] Backend de Digid del ambiente destino actualizado con los endpoints `document_pdf`/`signature_image` (hoy no se requiere alta de dominio en CORS; si Digid endurece su política, se te avisará).
 - [ ] Página de firma servida por **HTTPS**.
 - [ ] `baseUrl` apuntando al ambiente correcto de Digid.
 - [ ] Manejo implementado de los tres callbacks (`onComplete`, `onExit`, `onError`) con navegación/pantallas propias.
