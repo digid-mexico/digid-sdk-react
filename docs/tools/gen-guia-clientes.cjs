@@ -153,11 +153,11 @@ children.push(
   ] }),
   new Paragraph({ spacing: { after: 80 }, children: [
     new TextRun({ text: 'Versión: ', bold: true, size: 22, color: DARK }),
-    new TextRun({ text: '1.1.0', size: 22, color: DARK }),
+    new TextRun({ text: '1.3.0', size: 22, color: DARK }),
   ] }),
   new Paragraph({ spacing: { after: 80 }, children: [
     new TextRun({ text: 'Fecha: ', bold: true, size: 22, color: DARK }),
-    new TextRun({ text: 'julio de 2026', size: 22, color: DARK }),
+    new TextRun({ text: 'agosto de 2026', size: 22, color: DARK }),
   ] }),
   new Paragraph({ spacing: { after: 0 }, children: [
     new TextRun({ text: 'CONSTANCIAS DIGITALES · Licencia Apache-2.0', size: 20, color: GRAY }),
@@ -189,12 +189,12 @@ children.push(
   mkTable([700, 2400, 6260],
     ['Paso', 'Pantalla', 'Descripción'],
     [
-      ['1', '**Revisión del documento**', 'El firmante ve el PDF a firmar, puede descargarlo y acepta términos y condiciones. El visor incluye zoom (50%–300%) y navegación de páginas.'],
+      ['1', '**Revisión del documento**', 'El firmante ve el PDF a firmar, puede descargarlo y acepta términos y condiciones (si el documento requiere verificación de identidad, se muestra también el aviso de consentimiento KYC). El visor incluye zoom (50%–300%) y navegación de páginas.'],
       ['2', '**Identificación (frente)**', 'Pantalla de instrucción y cámara con marco guía: el SDK detecta la credencial, la recorta automáticamente con corrección de perspectiva y muestra un preview. También hay captura manual y carga de archivo.'],
       ['3', '**Identificación (reverso)**', 'Mismo flujo de instrucción, marco guiado y recorte automático que el paso anterior.'],
-      ['4', '**Selfie**', 'Cámara frontal con óvalo guía: el SDK detecta el rostro centrado y nítido y captura automáticamente. La vista previa se muestra en espejo, como en cualquier app de cámara frontal.'],
+      ['4', '**Selfie**', 'La cámara frontal se abre de inmediato, sin pantalla de instrucción previa, con un óvalo guía: el SDK detecta el rostro centrado y nítido y captura automáticamente (o con el botón de captura manual). **Es obligatoria por cámara**: a diferencia de los pasos 2 y 3, no hay alternativa de subir un archivo (sección 9).'],
       ['5', '**Creación de la firma**', 'El firmante dibuja su firma en un lienzo táctil (dedo, stylus o mouse).'],
-      ['6', '**Colocación de firmas**', 'El firmante confirma las posiciones de su firma sobre el PDF real, viendo el tamaño exacto con el que quedará estampada (37×24 mm).'],
+      ['6', '**Colocación de firmas**', 'El firmante confirma las posiciones de su firma sobre el PDF real, viendo el tamaño exacto con el que quedará estampada (35×22 mm).'],
       ['7', '**Confirmación**', 'Pantalla de éxito. El documento queda firmado y tu aplicación recibe el callback `onComplete`.'],
     ],
   ),
@@ -226,6 +226,7 @@ children.push(
   h2('1.3 Escaneo de documentos (INE)'),
   p('Los pasos de identificación usan un escáner con OpenCV: el firmante alinea la credencial al marco guía y, al detectarla bien encuadrada y nítida, el SDK recorta el documento con corrección de perspectiva — todo **en el propio dispositivo**, sin enviar video a ningún servidor. La captura manual y la carga de archivo siempre están disponibles.'),
   p('El paquete incluye, en la carpeta `scan-assets/`, un Web Worker (`scan-worker.js`) y el build WebAssembly de OpenCV (`opencv.js`, ~9 MB) que ese worker descarga de forma perezosa solo cuando el firmante llega al paso de identificación.'),
+  callout('Novedad', '`scan-assets/` también incluye `pdf.worker.min.mjs`, el worker del visor de PDF (sección 10.2), pineado a la versión de `pdfjs-dist` del SDK. Si ya sirves `scan-assets/` para la INE, el visor de PDF queda cubierto sin pasos extra.'),
   callout('Por qué hay que copiar la carpeta', 'Un Web Worker exige **mismo origen**: el navegador rechaza construirlo desde otro dominio. Es una regla del navegador, no una elección del SDK. Por eso `scan-assets/` debe servirse desde tu propio dominio, a diferencia de los modelos de la selfie, que sí pueden venir de un CDN.'),
   p('Copia la carpeta completa a tu directorio de estáticos (el detalle está en la sección 4, Instalación):'),
   ...code(['cp -R node_modules/@digid-sdk/firma-autografa-react/scan-assets public/digid-scan']),
@@ -277,7 +278,7 @@ children.push(
   numReq('**El token del firmante** para cada proceso de firma (ver sección 5).'),
   numReq('**React 18 o superior** en tu proyecto — el SDK lo declara como peer dependency, no lo instala.'),
   numReq('**HTTPS en producción.** La cámara usa `getUserMedia`, que los navegadores solo permiten en contextos seguros (`https://` o `localhost`).'),
-  numReq('**Que Digid habilite tu dominio en su configuración de CORS.** El SDK llama a la API de Digid directamente desde el navegador del firmante; solicita el alta indicando el dominio exacto, con esquema y subdominio.'),
+  numReq('**CORS: hoy no necesitas registrar tu dominio.** Los endpoints que consume el SDK (`/api/*`) están autorizados por token, no por origen. Esto puede cambiar si Digid endurece el allowlist más adelante; mientras tanto, el proxy opcional de la sección 6.3 sigue siendo la salida si algo cambia.'),
 );
 
 // 4. INSTALACIÓN
@@ -291,11 +292,11 @@ children.push(
   p('Sin ella, el SDK se renderiza sin ningún formato. Impórtala una vez, en el punto de entrada de tu aplicación:'),
   ...code(["import '@digid-sdk/firma-autografa-react/styles.css';"]),
   h2('4.3 Copiar los assets del escáner'),
-  p('Necesario para el recorte automático de la INE (el porqué está en la sección 1.3):'),
+  p('Necesario para el recorte automático de la INE, y desde esta versión también incluye el worker del visor de PDF (`pdf.worker.min.mjs`, sección 10.2) — el porqué de ambos está en la sección 1.3:'),
   ...code(['cp -R node_modules/@digid-sdk/firma-autografa-react/scan-assets public/digid-scan']),
   p('Como `node_modules` no se versiona, engancha la copia al `postinstall` de tu `package.json` para que se repita en cada instalación — sin esto, un despliegue limpio con `npm ci` la pierde:'),
   ...code(['"postinstall": "cp -R node_modules/@digid-sdk/firma-autografa-react/scan-assets public/digid-scan"']),
-  callout('Si omites este paso', 'El flujo de firma sigue funcionando: los pasos de INE se degradan a captura manual, sin detección en vivo ni corrección de perspectiva. La selfie no se ve afectada. Ver la tabla de la sección 1.3.'),
+  callout('Si omites este paso', 'El flujo de firma sigue funcionando: los pasos de INE se degradan a captura manual, sin detección en vivo ni corrección de perspectiva, y el visor de PDF pierde su fallback local (sección 10.2). La selfie no se ve afectada. Ver la tabla de la sección 1.3.'),
 );
 
 // 5. TOKEN
@@ -319,7 +320,7 @@ children.push(
   ),
   spacer(),
   ...code(['<FirmaAutografa token={token} baseUrl="https://digidmexico.com.mx" tokenTransport="header" />']),
-  p("Recomendación: integra con el default `'both'`, verifica el flujo completo y cambia después a `'header'`. Si tienes dudas sobre qué ambiente ya lo soporta, consulta a soporte de Digid."),
+  callout('Orden de despliegue', 'Mandar un header propio agrega preflight a cada llamada cross-origin. Si tu `baseUrl` apunta a otro origen, el backend debe aceptar el header y permitirlo en CORS **antes** de usar `\'both\'` o `\'header\'` — si no, fallarán todas las llamadas. Con `baseUrl: \'\'` (mismo origen) no aplica. Recomendado: integra con el default `\'both\'`, verifica el flujo completo y cambia después a `\'header\'`.'),
 );
 
 // 6. INICIO RÁPIDO
@@ -384,6 +385,27 @@ children.push(
     '  );',
     '}',
   ]),
+  h2('6.3 Proxy local (opcional)'),
+  p('El PDF y la imagen de firma se sirven vía `/api/archivofirma/document_pdf` y `/api/archivofirma/signature_image`, autorizados por token y cubiertos por la misma política CORS que el resto de `/api`. Llamar a Digid directo con `baseUrl` funciona out of the box; el proxy de esta sección **no es necesario**, pero sigue siendo válido si prefieres que tu app y Digid compartan el mismo origen (evita CORS por completo, útil con CSP muy estricta).'),
+  p('**Vite** (`vite.config.ts`):'),
+  ...code([
+    'export default defineConfig({',
+    '  server: {',
+    '    proxy: {',
+    "      '/api': { target: 'https://pruebas.digidmexico.com.mx', changeOrigin: true },",
+    '    },',
+    '  },',
+    '});',
+  ]),
+  p('**Next.js** (`next.config.js`):'),
+  ...code([
+    'module.exports = {',
+    '  async rewrites() {',
+    "    return [{ source: '/api/:path*', destination: 'https://pruebas.digidmexico.com.mx/api/:path*' }];",
+    '  },',
+    '};',
+  ]),
+  p('En ambos casos monta el SDK con `baseUrl=""`.'),
 );
 
 // 7. REFERENCIA DE API
@@ -398,7 +420,8 @@ children.push(
       ['`tokenTransport`', "`'both' | 'header' | 'query'`", "`'both'`", 'Cómo viaja el token (sección 5.1).'],
       ['`theme`', '`DigidTheme`', '—', 'Colores de tu marca (sección 8). Los estilos configurados en tu cuenta de Digid tienen prioridad.'],
       ['`termsUrl`', '`string`', 'T&C de Digid', 'URL de los términos y condiciones enlazados en el paso 1.'],
-      ['`detectionAssets`', '`DetectionAssets`', 'CDNs públicos', 'URLs propias para autoalojar el modelo de detección de rostro de la selfie (sección 1.2).'],
+      ['`pdfWorkerUrl`', '`string`', 'resolución automática, con reintento a `/digid-scan/pdf.worker.min.mjs`', 'URL del worker de `pdfjs-dist` para el visor de PDF (sección 10.2).'],
+      ['`detectionAssets`', '`DetectionAssets`', 'CDNs públicos', 'URLs propias para autoalojar el modelo de detección de rostro de la selfie (sección 1.2). `zxingWasmUrl` ya no se usa (reservado por compatibilidad).'],
       ['`scanAssets`', '`ScanAssets`', '`/digid-scan/scan-worker.js`', 'URL propia del worker de escaneo de INE (sección 1.3).'],
       ['`onComplete`', '`() => void`', '—', 'El firmante completó todo el proceso; el documento quedó firmado.'],
       ['`onExit`', '`(reason) => void`', '—', 'El proceso terminó sin firmar. Razones abajo.'],
@@ -442,9 +465,9 @@ children.push(
   p('Para integraciones avanzadas, el paquete también exporta:'),
   bullet('`useAutografaFlow`, `flowReducer`, `initialFlowState` y los tipos `FlowState` / `FlowStep` / `FlowAction` — la máquina de estados del flujo, para construir una UI propia (headless).'),
   bullet('`ApiClient` — cliente tipado de los endpoints de Digid.'),
-  bullet('Componentes de cada paso (`StartStep`, `IdCaptureStep`, `SelfieStep`, `CreateSignStep`, `PlaceSignaturesStep`, `CompletedStep`) y piezas reutilizables (`PdfViewer`, `SignaturePad`).'),
+  bullet('Componentes de cada paso (`StartStep`, `IdCaptureStep`, `CreateSignStep`, `PlaceSignaturesStep`, `CompletedStep`) y piezas reutilizables (`PdfViewer`, `SignaturePad`).'),
   bullet('`es` / `Strings` / `I18nProvider` / `useStrings` — el diccionario de textos (español).'),
-  p('Para la mayoría de las integraciones basta con `<FirmaAutografa>`. Existe además el subpath `@digid-sdk/firma-autografa-react/engine` con el motor de escaneo y detección; es **API inestable** para casos a la medida — si lo usas, fija la versión exacta del SDK y revisa el CHANGELOG antes de actualizar.'),
+  p('Para la mayoría de las integraciones basta con `<FirmaAutografa>`; el resto de la superficie existe para casos a la medida y puede evolucionar entre versiones menores.'),
 );
 
 // 8. PERSONALIZACIÓN VISUAL
@@ -483,10 +506,11 @@ children.push(
 // 9. PERMISOS Y COMPATIBILIDAD
 children.push(
   h1('9. Permisos del navegador y compatibilidad'),
-  mkTable([1800, 4000, 3560],
+  mkTable([2400, 3300, 3660],
     ['Permiso', 'Cuándo se solicita', 'Si el usuario lo niega'],
     [
-      ['**Cámara**', 'En los pasos de captura de identificación y selfie.', 'El firmante puede subir un archivo JPEG/PNG en su lugar.'],
+      ['**Cámara (INE frente/reverso)**', 'Al abrir la cámara desde la pantalla de instrucción.', 'El firmante puede subir un archivo JPEG/PNG en su lugar.'],
+      ['**Cámara (selfie)**', 'Se abre de inmediato al llegar al paso, sin pantalla de instrucción previa.', '**Sin alternativa de archivo: la selfie exige cámara.** La pantalla de error ofrece Reintentar y Regresar; debe conceder el permiso para continuar.'],
       ['**Geolocalización**', 'Solo si el emisor configuró la firma con evidencia de ubicación.', 'El proceso continúa sin coordenadas.'],
     ],
   ),
@@ -500,12 +524,15 @@ children.push(
 children.push(
   h1('10. Notas por tipo de proyecto'),
   h2('10.1 Bundlers ESM (Vite, Next.js, webpack 5, Rollup)'),
-  p('Sin configuración extra: el visor de PDF resuelve automáticamente el worker de `pdfjs-dist` mediante `import.meta.url`.'),
-  h2('10.2 Consumidores CommonJS'),
-  p('En el build CommonJS `import.meta` no existe, así que el worker de pdf.js no puede resolverse solo. Opciones:'),
-  bullet('Sirve `pdfjs-dist/build/pdf.worker.min.mjs` como asset estático y pásalo al componente `PdfViewer` mediante la prop `workerSrc`, o'),
-  bullet('configura `GlobalWorkerOptions.workerSrc` de `pdfjs-dist` globalmente antes de montar el SDK.'),
-  p('Si no lo configuras, el visor muestra su estado de error y registra en consola un mensaje indicando exactamente esto.'),
+  p('El SDK intenta resolver el worker de pdf.js vía `import.meta.url`, pero Vite y otros bundlers basados en esbuild pre-empaquetan las dependencias y no reescriben esa URL: la construcción **no lanza ningún error**, produce una URL que apunta a un 404 en runtime. Cuando eso pasa, el visor lo detecta y **reintenta automáticamente una vez** sirviendo el worker desde `/digid-scan/pdf.worker.min.mjs`, sin que el integrador haga nada — con la condición de que esa ruta esté servida (sección 10.2). Si no la sirves, o prefieres configurar el worker desde el arranque sin depender del reintento, usa una de las opciones de la sección siguiente.'),
+  h2('10.2 Worker del visor PDF (todos los proyectos)'),
+  p('Dos formas de configurarlo explícitamente — basta con una, y si ya sirves `scan-assets/` (sección 1.3) no necesitas hacer nada más, porque esa carpeta incluye el worker desde esta versión:'),
+  bullet('**Prop `pdfWorkerUrl` en `<FirmaAutografa>`** — la forma recomendada.'),
+  ...code(['<FirmaAutografa token={token} pdfWorkerUrl="/digid-scan/pdf.worker.min.mjs" />']),
+  bullet('**Prop `workerSrc` en `PdfViewer`** — si usas ese componente por separado, fuera de `<FirmaAutografa>`.'),
+  ...code(['<PdfViewer url={pdfUrl} workerSrc="/digid-scan/pdf.worker.min.mjs" />']),
+  p('**Consumidores CommonJS** (Jest con transform CJS, SSR Node, bundlers legados): en el build `.cjs` `import.meta` no existe, así que la resolución automática siempre falla ahí — una de las dos props de arriba es obligatoria, o configura `GlobalWorkerOptions.workerSrc` de `pdfjs-dist` globalmente antes de montar el SDK.'),
+  p('Sin ninguna de estas opciones y sin `scan-assets/` servido, el visor igual intenta el reintento a `/digid-scan/pdf.worker.min.mjs`; como esa ruta tampoco existe en tu servidor, también falla y el visor muestra su estado de error.'),
   h2('10.3 Content Security Policy (CSP)'),
   p('El SDK no carga scripts de terceros propios, así que funciona con CSP estricta. Directivas necesarias (ajusta el dominio al ambiente):'),
   ...code([
@@ -529,13 +556,16 @@ children.push(
   mkTable([3120, 3120, 3120],
     ['Síntoma', 'Causa probable', 'Solución'],
     [
-      ['`onError` inmediato con código `NETWORK` y errores CORS en consola', 'Tu dominio no está en la lista de orígenes permitidos de Digid', 'Solicita a Digid el alta de tu dominio exacto (esquema + subdominio).'],
+      ['`onError` inmediato con código `NETWORK` y errores CORS en consola', 'Tu dominio no está en la lista de orígenes permitidos de Digid', 'Solicita a Digid el alta de tu dominio exacto. Alternativa: el proxy opcional de la sección 6.3 con `baseUrl=""`.'],
+      ['El visor del PDF se queda en **"Página de 0"** sin mensaje de error, con dos peticiones 404 a `pdf.worker.min.mjs` en la pestaña Red', 'El worker de pdf.js no se resolvió (Vite/esbuild) y tampoco sirves `scan-assets/`, así que el reintento automático también 404ea', 'Sirve `scan-assets/` (ya incluye el worker) o pasa `pdfWorkerUrl` — sección 10.2.'],
+      ['El PDF no carga y la petición a `document_pdf` aparece **sin código de estado** en la pestaña Red, pero la URL sí funciona pegada directo en el navegador', 'Bloqueo CORS: el navegador descarta la respuesta — **un 200 tampoco lo descarta**, revisa la consola por avisos de CORS', 'Con backend y SDK actualizados, `document_pdf`/`signature_image` viven bajo `/api/*` y no dependen de CORS. Contra un backend viejo, usa el proxy opcional de la sección 6.3.'],
+      ['El PDF no carga (token válido), sin los síntomas anteriores', 'El backend de Digid aún no incluye los endpoints `document_pdf`/`signature_image`', 'Confirma con Digid la versión del backend, o usa el proxy opcional de la sección 6.3 mientras se actualiza.'],
       ['`onError` con `INVALID_TOKEN`', 'Token mal copiado, vencido, o proceso ya cerrado', 'Verifica que pasas el token completo y que el documento sigue vigente.'],
-      ['La cámara no abre', 'Página sin HTTPS, o permiso denegado', 'Sirve por HTTPS; el firmante siempre puede subir archivo.'],
+      ['La cámara no abre (INE)', 'Página sin HTTPS, o permiso denegado', 'Sirve por HTTPS; el firmante siempre puede subir archivo.'],
+      ['La cámara no abre (selfie)', 'Página sin HTTPS, o permiso denegado', 'Sirve por HTTPS. **Sin alternativa de archivo** (sección 9): la pantalla de error ofrece Reintentar y Regresar.'],
       ['En INE no hay detección en vivo y en consola aparece "Worker de escaneo no disponible"', '`scan-assets/` no se está sirviendo en la URL esperada', 'Copia la carpeta (sección 4.3) y comprueba que `/digid-scan/scan-worker.js` responde 200. Si usas otra ruta, indícala en `scanAssets.workerUrl`.'],
       ['Funcionaba en local y tras desplegar dejó de funcionar el escáner', '`npm ci` borró `node_modules` y con él la copia manual de `scan-assets/`', 'Engancha la copia al `postinstall` (sección 4.3).'],
       ['La selfie sí captura sola pero la INE no', 'Son dos mecanismos distintos: selfie usa MediaPipe (CDN); INE, el worker local de OpenCV', 'El síntoma apunta a `scan-assets/`, no a `detectionAssets`.'],
-      ['El PDF no se muestra', 'Worker de pdf.js no resuelto (build CJS) o PDF inaccesible', 'Ver sección 10.2; revisa en la pestaña Red si `/storage/files/...` responde 200.'],
       ['El SDK muestra directamente la pantalla de éxito', 'El firmante ya había completado el proceso', 'Comportamiento esperado.'],
       ['Los colores de mi `theme` no se aplican', 'Tu cuenta tiene estilos de marca configurados en Digid', 'Los estilos de la plataforma tienen prioridad; ajústalos en Digid o solicita su retiro.'],
     ],
@@ -555,7 +585,7 @@ children.push(
   check('La copia de `scan-assets/` enganchada al `postinstall`, para que sobreviva a un despliegue limpio.'),
   check('CSP verificada si tu aplicación la define (sección 10.3).'),
   check('El token nunca aparece en logs del cliente ni en URLs compartibles innecesariamente.'),
-  check('`tokenTransport="header"` activado una vez que Digid confirme el soporte en tu ambiente (sección 5.1).'),
+  check('`tokenTransport="header"` activado una vez que el backend acepta `X-Digid-Token` (sección 5.1); con el default `\'both\'` el token sigue llegando también por query a los logs de acceso.'),
 );
 
 // 13. SOPORTE
@@ -585,7 +615,7 @@ children.push(
     spacing: { before: 480 },
     border: { top: { style: BorderStyle.SINGLE, size: 4, color: BORDER } },
     children: [new TextRun({
-      text: 'Digid — plataforma de firma digital. Esta guía corresponde a la versión 1.1.0 del SDK.',
+      text: 'Digid — plataforma de firma digital. Esta guía corresponde a la versión 1.3.0 del SDK.',
       italics: true, size: 18, color: GRAY,
     })],
   }),
@@ -658,7 +688,7 @@ const doc = new Document({
           alignment: AlignmentType.RIGHT,
           border: { top: { style: BorderStyle.SINGLE, size: 4, color: BORDER } },
           children: [
-            new TextRun({ text: 'Digid · SDK de Firma Autógrafa v1.1.0   ', size: 16, color: GRAY }),
+            new TextRun({ text: 'Digid · SDK de Firma Autógrafa v1.3.0   ', size: 16, color: GRAY }),
             new TextRun({ children: [PageNumber.CURRENT], size: 16, color: GRAY }),
           ],
         })],
